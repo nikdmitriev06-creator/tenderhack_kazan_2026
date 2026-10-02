@@ -29,6 +29,8 @@ class Table:
     columns: list[str]
     rows: Callable[[], Iterator[dict[str, Any]]]
     row_count: int | None = None
+    # Освобождает файл (книга xlsx в режиме read_only держит его открытым); None — нечего закрывать.
+    close: Callable[[], None] | None = None
 
 
 @dataclass
@@ -125,7 +127,7 @@ def _xlsx_tables(path: Path) -> Iterator[Table]:
                     yield dict(zip(columns, cells, strict=False))
 
         count = (ws.max_row - first_data + 1) if ws.max_row else None
-        yield Table(f"{path}#{ws.title}", columns, rows, count)
+        yield Table(f"{path}#{ws.title}", columns, rows, count, close=wb.close)
 
 
 def looks_like_header(row: tuple[Any, ...] | list[Any]) -> bool:
