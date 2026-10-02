@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1620 570" width="1620" height="570" font-family="Onest, system-ui, sans-serif" font-size="12">
+<title>BPMN: создание СТЕ с модулем автозаполнения</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#17191c"/></marker></defs>
+<rect width="1620" height="570" fill="#ffffff"/>
+<rect x="40" y="0" width="1580" height="190" fill="#ffffff" stroke="#dcdfe3"/>
+<rect x="0" y="0" width="40" height="190" fill="#ffffff" stroke="#dcdfe3"/>
+<text x="20" y="95" transform="rotate(-90 20 95)" text-anchor="middle" dominant-baseline="middle" fill="#17191c" font-weight="600">Поставщик (портал)</text>
+<rect x="40" y="190" width="1580" height="190" fill="#f5f6f7" stroke="#dcdfe3"/>
+<rect x="0" y="190" width="40" height="190" fill="#ffffff" stroke="#dcdfe3"/>
+<text x="20" y="285" transform="rotate(-90 20 285)" text-anchor="middle" dominant-baseline="middle" fill="#17191c" font-weight="600">Модуль автозаполнения</text>
+<rect x="40" y="380" width="1580" height="190" fill="#ffffff" stroke="#dcdfe3"/>
+<rect x="0" y="380" width="40" height="190" fill="#ffffff" stroke="#dcdfe3"/>
+<text x="20" y="475" transform="rotate(-90 20 475)" text-anchor="middle" dominant-baseline="middle" fill="#17191c" font-weight="600">Модератор (портал)</text>
+<path d="M158 95 L240 95" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M310 135 L310 245" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="316" y="194" fill="#5b616a" font-size="11" text-anchor="start">POST /autofill</text>
+<path d="M380 285 L455 285" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M466 260 L466 135" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="472" y="201.5" fill="#5b616a" font-size="11" text-anchor="start">нет</text>
+<path d="M494 135 L494 260" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="500" y="201.5" fill="#5b616a" font-size="11" text-anchor="start">POST /answer</text>
+<path d="M505 285 L540 285 L540 160 L620 160 L620 135" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="546" y="226.5" fill="#5b616a" font-size="11" text-anchor="start">да</text>
+<path d="M650 135 L650 245" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="656" y="194" fill="#5b616a" font-size="11" text-anchor="start">POST /check</text>
+<path d="M720 285 L795 285" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M820 260 L820 212 L690 212 L690 135" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="755" y="206" fill="#5b616a" font-size="11" text-anchor="middle">да</text>
+<path d="M845 285 L960 285 L960 135" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="966" y="214" fill="#5b616a" font-size="11" text-anchor="start">нет</text>
+<path d="M1020 135 L1020 435" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M1060 475 L1135 475" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M1185 475 L1260 475" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="1222.5" y="469" fill="#5b616a" font-size="11" text-anchor="middle">да</text>
+<path d="M1400 475 L1482 475" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<path d="M1160 450 L1160 22 L650 22 L650 55" fill="none" stroke="#17191c" stroke-width="1.2" marker-end="url(#arrow)"/>
+<text x="905" y="16" fill="#5b616a" font-size="11" text-anchor="middle">нет: вернуть с замечаниями</text>
+<circle cx="140" cy="95" r="18" fill="#ffffff" stroke="#17191c" stroke-width="1.5"/>
+<text x="140" y="129" text-anchor="middle" fill="#17191c">Нужна новая СТЕ</text>
+<rect x="240" y="55" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="310" y="92" text-anchor="middle" fill="#17191c">Ввести наименование</text>
+<text x="310" y="106" text-anchor="middle" fill="#17191c">и описание</text>
+<rect x="240" y="245" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="310" y="275" text-anchor="middle" fill="#17191c">Подобрать позицию</text>
+<text x="310" y="289" text-anchor="middle" fill="#17191c">КТРУ и заполнить</text>
+<text x="310" y="303" text-anchor="middle" fill="#17191c">характеристики</text>
+<polygon points="480,260 505,285 480,310 455,285" fill="#ffe98f" stroke="#17191c" stroke-width="1.2"/>
+<text x="480" y="290" text-anchor="middle" fill="#17191c" font-size="16">×</text>
+<text x="480" y="326" text-anchor="middle" fill="#17191c">Код КТРУ однозначен?</text>
+<rect x="410" y="55" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="480" y="92" text-anchor="middle" fill="#17191c">Ответить на</text>
+<text x="480" y="106" text-anchor="middle" fill="#17191c">уточняющий вопрос</text>
+<rect x="580" y="55" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="650" y="92" text-anchor="middle" fill="#17191c">Принять или</text>
+<text x="650" y="106" text-anchor="middle" fill="#17191c">поправить значения</text>
+<rect x="580" y="245" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="650" y="275" text-anchor="middle" fill="#17191c">Проверить карточку</text>
+<text x="650" y="289" text-anchor="middle" fill="#17191c">по правилам</text>
+<text x="650" y="303" text-anchor="middle" fill="#17191c">модерации</text>
+<polygon points="820,260 845,285 820,310 795,285" fill="#ffe98f" stroke="#17191c" stroke-width="1.2"/>
+<text x="820" y="290" text-anchor="middle" fill="#17191c" font-size="16">×</text>
+<text x="820" y="326" text-anchor="middle" fill="#17191c">Есть блокирующие</text>
+<text x="820" y="340" text-anchor="middle" fill="#17191c">замечания?</text>
+<rect x="920" y="55" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="990" y="92" text-anchor="middle" fill="#17191c">Отправить на</text>
+<text x="990" y="106" text-anchor="middle" fill="#17191c">модерацию</text>
+<rect x="920" y="435" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="990" y="472" text-anchor="middle" fill="#17191c">Проверить заявку с</text>
+<text x="990" y="486" text-anchor="middle" fill="#17191c">замечаниями модуля</text>
+<polygon points="1160,450 1185,475 1160,500 1135,475" fill="#ffe98f" stroke="#17191c" stroke-width="1.2"/>
+<text x="1160" y="480" text-anchor="middle" fill="#17191c" font-size="16">×</text>
+<text x="1160" y="516" text-anchor="middle" fill="#17191c">Принять заявку?</text>
+<rect x="1260" y="435" width="140" height="80" rx="8" fill="#ffffff" stroke="#17191c" stroke-width="1.2"/>
+<text x="1330" y="472" text-anchor="middle" fill="#17191c">Опубликовать СТЕ в</text>
+<text x="1330" y="486" text-anchor="middle" fill="#17191c">каталоге</text>
+<circle cx="1500" cy="475" r="18" fill="#ffffff" stroke="#17191c" stroke-width="3.5"/>
+<text x="1500" y="509" text-anchor="middle" fill="#17191c">СТЕ в каталоге</text>
+</svg>
