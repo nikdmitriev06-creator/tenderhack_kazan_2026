@@ -70,6 +70,8 @@ class OpenAICompatProvider(HttpProvider):
         if self.think is False:
             # vLLM и llama.cpp: выключить рассуждения шаблона Qwen3.
             body["chat_template_kwargs"] = {"enable_thinking": False}
+        elif isinstance(self.think, str):
+            body["reasoning_effort"] = self.think  # уровень рассуждений для gpt-oss и подобных
         if schema is not None:
             body["response_format"] = {
                 "type": "json_schema",

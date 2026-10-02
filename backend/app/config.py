@@ -1,10 +1,17 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Provider = Literal["ollama", "openai"]
+# Рассуждения: False — выключить, None — не передавать, уровень — для моделей, которые
+# не выключают их совсем (gpt-oss: с low ~15 символов рассуждения вместо ~900, замер 01.10.2026).
+Think = bool | Literal["low", "medium", "high"] | None
+
+# Демо-справочник в репозитории: синтетика с именами характеристик портала (app/catalog/demo).
+DEMO_CATALOG = Path(__file__).parent / "catalog" / "demo" / "demo.json"
 
 
 class Settings(BaseSettings):
@@ -31,7 +38,7 @@ class Settings(BaseSettings):
     llm_max_retries: int = 2
     # Рассуждения (think) у qwen3/qwen3.5 по умолчанию включены и замедляют ответ в разы
     # (замер 30.09: 0,35 с против 3 с на коротком вопросе). None — не передавать параметр.
-    llm_think: bool | None = False
+    llm_think: Think = False
     # Ollama и сервер могут быть недоступны при разработке: readiness без них не падает.
     llm_required: bool = False
 
@@ -43,6 +50,25 @@ class Settings(BaseSettings):
 
     health_timeout_s: float = 2.0
     job_ttl_s: int = 3600
+
+    # Файлы справочника через запятую (.json или .csv), пути от рабочего каталога процесса.
+    # Пусто — демо-справочник из репозитория (app/catalog/demo/demo.json, синтетика): чистый клон
+    # стартует сам. Справочник организаторов кладут в ./data и указывают здесь.
+    catalog_paths: str = ""
+
+    # Отсечка «товар вне справочника»: нормированная оценка BM25 лучшего кандидата (0..1).
+    # Калибруется скриптом оценки на золотом наборе (app.tools.evaluate).
+    search_min_score: float = 0.2
+    # Результат последнего прогона оценки: его отдаёт GET /api/v1/metrics.
+    metrics_path: str = "data/metrics/latest.json"
+    # Отчёт по живым карточкам портала (app.tools.portal_report): GET /api/v1/metrics/portal.
+    portal_report_path: str = "data/metrics/portal.json"
+    # Кэш ответов модели в Redis (тот же текст — без второго вызова LLM), секунды; 0 — выключен.
+    llm_cache_ttl_s: int = 86400
+
+    def catalog_files(self) -> list[Path]:
+        files = [Path(p.strip()) for p in self.catalog_paths.split(",") if p.strip()]
+        return files or [DEMO_CATALOG]
 
     @field_validator("embed_provider", mode="before")
     @classmethod

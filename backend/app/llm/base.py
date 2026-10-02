@@ -10,6 +10,8 @@ from typing import Any
 import httpx
 from pydantic import BaseModel, ValidationError
 
+from app.config import Think
+
 log = logging.getLogger(__name__)
 
 Message = dict[str, str]
@@ -73,7 +75,7 @@ class HttpProvider:
         api_key: str = "",
         timeout: float = 120.0,
         max_retries: int = 2,
-        think: bool | None = None,
+        think: Think = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.think = think

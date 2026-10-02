@@ -149,6 +149,38 @@ def test_think_off_is_sent_to_both_providers() -> None:
     assert bodies[1]["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+def test_think_level_is_sent_to_both_providers() -> None:
+    # gpt-oss не выключает рассуждения совсем, но с уровнем low отвечает в разы короче.
+    bodies = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(json.loads(request.content))
+        if request.url.path == "/api/chat":
+            return httpx.Response(200, json={"message": {"content": "ok"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    run(
+        client_for(handler, llm_provider="ollama", llm_think="low").chat(
+            [{"role": "user", "content": "x"}]
+        )
+    )
+    run(
+        client_for(handler, llm_provider="openai", llm_think="low").chat(
+            [{"role": "user", "content": "x"}]
+        )
+    )
+    assert bodies[0]["think"] == "low"
+    assert bodies[1]["reasoning_effort"] == "low"
+    assert "chat_template_kwargs" not in bodies[1]
+
+
+def test_think_level_is_read_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LLM_THINK", "low")
+    assert Settings(_env_file=None).llm_think == "low"
+    monkeypatch.setenv("LLM_THINK", "false")
+    assert Settings(_env_file=None).llm_think is False
+
+
 def test_model_without_thinking_is_retried_without_think() -> None:
     bodies = []
 

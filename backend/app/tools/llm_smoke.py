@@ -15,7 +15,7 @@ import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from app.config import get_settings
 from app.glossary import Glossary
@@ -23,6 +23,9 @@ from app.llm import LLMClient, LLMError
 
 
 class Item(BaseModel):
+    # Модели часто отдают число числом (80, а не "80"); значение потом сверяется со справочником.
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
     name: str
     value: str
     unit: str | None = None
