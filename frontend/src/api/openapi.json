@@ -1,0 +1,1994 @@
+{
+ "components": {
+  "schemas": {
+   "AnswerIn": {
+    "properties": {
+     "characteristic": {
+      "title": "Characteristic",
+      "type": "string"
+     },
+     "value": {
+      "description": "вариант вопроса; пустая строка — «нет такой характеристики»",
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "characteristic",
+     "value"
+    ],
+    "title": "AnswerIn",
+    "type": "object"
+   },
+   "AuditExample": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "fix": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Fix"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "url": {
+      "title": "Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "url",
+     "name",
+     "field",
+     "message"
+    ],
+    "title": "AuditExample",
+    "type": "object"
+   },
+   "AuditRule": {
+    "properties": {
+     "cards": {
+      "title": "Cards",
+      "type": "integer"
+     },
+     "examples": {
+      "items": {
+       "$ref": "#/components/schemas/AuditExample"
+      },
+      "title": "Examples",
+      "type": "array"
+     },
+     "rule": {
+      "title": "Rule",
+      "type": "string"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     }
+    },
+    "required": [
+     "rule",
+     "cards",
+     "share",
+     "examples"
+    ],
+    "title": "AuditRule",
+    "type": "object"
+   },
+   "AutofillIn": {
+    "properties": {
+     "description": {
+      "default": "",
+      "description": "описание в свободной форме",
+      "title": "Description",
+      "type": "string"
+     },
+     "name": {
+      "description": "наименование СТЕ, как его ввёл поставщик",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "AutofillIn",
+    "type": "object"
+   },
+   "AutofillOut": {
+    "properties": {
+     "characteristics": {
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicOut"
+      },
+      "title": "Characteristics",
+      "type": "array"
+     },
+     "degraded": {
+      "items": {
+       "enum": [
+        "llm",
+        "embeddings"
+       ],
+       "type": "string"
+      },
+      "title": "Degraded",
+      "type": "array"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/Issue"
+      },
+      "title": "Issues",
+      "type": "array"
+     },
+     "ktru": {
+      "$ref": "#/components/schemas/KtruState"
+     },
+     "session_id": {
+      "title": "Session Id",
+      "type": "string"
+     }
+    },
+    "required": [
+     "session_id",
+     "ktru",
+     "characteristics",
+     "issues",
+     "degraded"
+    ],
+    "title": "AutofillOut",
+    "type": "object"
+   },
+   "BatchAccepted": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "status_url": {
+      "title": "Status Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "status_url"
+    ],
+    "title": "BatchAccepted",
+    "type": "object"
+   },
+   "BatchRowResult": {
+    "properties": {
+     "error": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Error"
+     },
+     "filled": {
+      "title": "Filled",
+      "type": "integer"
+     },
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/Issue"
+      },
+      "title": "Issues",
+      "type": "array"
+     },
+     "ktru_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ktru Code"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "row": {
+      "title": "Row",
+      "type": "integer"
+     },
+     "status": {
+      "enum": [
+       "ready",
+       "needs_answer",
+       "needs_fix",
+       "not_found",
+       "skipped",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "row",
+     "name",
+     "status",
+     "ktru_code",
+     "filled",
+     "issues"
+    ],
+    "title": "BatchRowResult",
+    "type": "object"
+   },
+   "BatchState": {
+    "properties": {
+     "filename": {
+      "title": "Filename",
+      "type": "string"
+     },
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "processed": {
+      "title": "Processed",
+      "type": "integer"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/BatchRowResult"
+      },
+      "title": "Rows",
+      "type": "array"
+     },
+     "status": {
+      "enum": [
+       "queued",
+       "running",
+       "done",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "total": {
+      "title": "Total",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "job_id",
+     "status",
+     "filename",
+     "total",
+     "processed",
+     "rows"
+    ],
+    "title": "BatchState",
+    "type": "object"
+   },
+   "Body_post_batch_api_v1_batch_post": {
+    "properties": {
+     "file": {
+      "contentMediaType": "application/octet-stream",
+      "title": "File",
+      "type": "string"
+     }
+    },
+    "required": [
+     "file"
+    ],
+    "title": "Body_post_batch_api_v1_batch_post",
+    "type": "object"
+   },
+   "Candidate": {
+    "properties": {
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "score": {
+      "title": "Score",
+      "type": "number"
+     },
+     "why": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Why",
+      "type": "array"
+     }
+    },
+    "required": [
+     "code",
+     "name",
+     "score",
+     "why"
+    ],
+    "title": "Candidate",
+    "type": "object"
+   },
+   "CardIn": {
+    "properties": {
+     "characteristics": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CharIn"
+      },
+      "title": "Characteristics",
+      "type": "array"
+     },
+     "description": {
+      "default": "",
+      "title": "Description",
+      "type": "string"
+     },
+     "ktru_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Ktru Code"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name"
+    ],
+    "title": "CardIn",
+    "type": "object"
+   },
+   "CharIn": {
+    "properties": {
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "name",
+     "value"
+    ],
+    "title": "CharIn",
+    "type": "object"
+   },
+   "CharacteristicOut": {
+    "properties": {
+     "method": {
+      "anyOf": [
+       {
+        "enum": [
+         "rule",
+         "llm",
+         "answer"
+        ],
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Method"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "normalized_from": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Normalized From"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     },
+     "required": {
+      "title": "Required",
+      "type": "boolean"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Span"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "status": {
+      "enum": [
+       "filled",
+       "normalized",
+       "not_found",
+       "conflict"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "required": [
+     "name",
+     "value",
+     "unit",
+     "source",
+     "status",
+     "required"
+    ],
+    "title": "CharacteristicOut",
+    "type": "object"
+   },
+   "CharacteristicSpec": {
+    "description": "Характеристика позиции: перечень (`values`) или диапазон (`range`), единица.",
+    "properties": {
+     "kind": {
+      "enum": [
+       "qualitative",
+       "quantitative"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "level_define": {
+      "default": false,
+      "title": "Level Define",
+      "type": "boolean"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "range": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/NumRange"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "required": {
+      "default": false,
+      "title": "Required",
+      "type": "boolean"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "values": {
+      "default": [],
+      "items": {
+       "type": "string"
+      },
+      "title": "Values",
+      "type": "array"
+     }
+    },
+    "required": [
+     "name",
+     "kind"
+    ],
+    "title": "CharacteristicSpec",
+    "type": "object"
+   },
+   "CheckOut": {
+    "properties": {
+     "issues": {
+      "items": {
+       "$ref": "#/components/schemas/Issue"
+      },
+      "title": "Issues",
+      "type": "array"
+     },
+     "verdict": {
+      "enum": [
+       "ready",
+       "needs_fix"
+      ],
+      "title": "Verdict",
+      "type": "string"
+     }
+    },
+    "required": [
+     "issues",
+     "verdict"
+    ],
+    "title": "CheckOut",
+    "type": "object"
+   },
+   "DecisionIn": {
+    "properties": {
+     "decision": {
+      "enum": [
+       "accept",
+       "return"
+      ],
+      "title": "Decision",
+      "type": "string"
+     },
+     "note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Note"
+     }
+    },
+    "required": [
+     "decision"
+    ],
+    "title": "DecisionIn",
+    "type": "object"
+   },
+   "DependencyStatus": {
+    "properties": {
+     "detail": {
+      "title": "Detail",
+      "type": "string"
+     },
+     "latency_ms": {
+      "title": "Latency Ms",
+      "type": "number"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "ok": {
+      "title": "Ok",
+      "type": "boolean"
+     },
+     "required": {
+      "title": "Required",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "name",
+     "ok",
+     "required",
+     "detail",
+     "latency_ms"
+    ],
+    "title": "DependencyStatus",
+    "type": "object"
+   },
+   "Fix": {
+    "properties": {
+     "name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Name"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     },
+     "value": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Value"
+     }
+    },
+    "title": "Fix",
+    "type": "object"
+   },
+   "HTTPValidationError": {
+    "properties": {
+     "detail": {
+      "items": {
+       "$ref": "#/components/schemas/ValidationError"
+      },
+      "title": "Detail",
+      "type": "array"
+     }
+    },
+    "title": "HTTPValidationError",
+    "type": "object"
+   },
+   "Issue": {
+    "properties": {
+     "field": {
+      "title": "Field",
+      "type": "string"
+     },
+     "fix": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Fix"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "kind": {
+      "enum": [
+       "typo",
+       "mismatch",
+       "not_in_list",
+       "moderation_rule"
+      ],
+      "title": "Kind",
+      "type": "string"
+     },
+     "message": {
+      "title": "Message",
+      "type": "string"
+     },
+     "rule": {
+      "title": "Rule",
+      "type": "string"
+     },
+     "severity": {
+      "enum": [
+       "block",
+       "warn",
+       "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+     },
+     "why": {
+      "title": "Why",
+      "type": "string"
+     }
+    },
+    "required": [
+     "field",
+     "kind",
+     "severity",
+     "message",
+     "why",
+     "rule"
+    ],
+    "title": "Issue",
+    "type": "object"
+   },
+   "JobAccepted": {
+    "properties": {
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "status_url": {
+      "title": "Status Url",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "status_url"
+    ],
+    "title": "JobAccepted",
+    "type": "object"
+   },
+   "JobState": {
+    "properties": {
+     "detail": {
+      "default": "",
+      "title": "Detail",
+      "type": "string"
+     },
+     "job_id": {
+      "title": "Job Id",
+      "type": "string"
+     },
+     "status": {
+      "enum": [
+       "queued",
+       "done",
+       "failed"
+      ],
+      "title": "Status",
+      "type": "string"
+     },
+     "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+     }
+    },
+    "required": [
+     "job_id",
+     "status"
+    ],
+    "title": "JobState",
+    "type": "object"
+   },
+   "KtruState": {
+    "properties": {
+     "candidates": {
+      "items": {
+       "$ref": "#/components/schemas/Candidate"
+      },
+      "title": "Candidates",
+      "type": "array"
+     },
+     "final_code": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Final Code"
+     },
+     "question": {
+      "anyOf": [
+       {
+        "$ref": "#/components/schemas/Question"
+       },
+       {
+        "type": "null"
+       }
+      ]
+     },
+     "remaining": {
+      "title": "Remaining",
+      "type": "integer"
+     },
+     "steps": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Steps",
+      "type": "array"
+     }
+    },
+    "required": [
+     "candidates",
+     "remaining",
+     "final_code",
+     "question",
+     "steps"
+    ],
+    "title": "KtruState",
+    "type": "object"
+   },
+   "MetricRow": {
+    "properties": {
+     "how": {
+      "title": "How",
+      "type": "string"
+     },
+     "key": {
+      "title": "Key",
+      "type": "string"
+     },
+     "n": {
+      "title": "N",
+      "type": "integer"
+     },
+     "title": {
+      "title": "Title",
+      "type": "string"
+     },
+     "value": {
+      "title": "Value",
+      "type": "number"
+     }
+    },
+    "required": [
+     "key",
+     "title",
+     "value",
+     "n",
+     "how"
+    ],
+    "title": "MetricRow",
+    "type": "object"
+   },
+   "MetricsOut": {
+    "properties": {
+     "catalog_source": {
+      "title": "Catalog Source",
+      "type": "string"
+     },
+     "catalog_version": {
+      "title": "Catalog Version",
+      "type": "string"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "model": {
+      "title": "Model",
+      "type": "string"
+     },
+     "rows": {
+      "items": {
+       "$ref": "#/components/schemas/MetricRow"
+      },
+      "title": "Rows",
+      "type": "array"
+     }
+    },
+    "required": [
+     "created_at",
+     "catalog_version",
+     "catalog_source",
+     "model",
+     "rows"
+    ],
+    "title": "MetricsOut",
+    "type": "object"
+   },
+   "NumRange": {
+    "properties": {
+     "max": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Max"
+     },
+     "min": {
+      "anyOf": [
+       {
+        "type": "number"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Min"
+     }
+    },
+    "title": "NumRange",
+    "type": "object"
+   },
+   "Option": {
+    "properties": {
+     "cuts": {
+      "title": "Cuts",
+      "type": "integer"
+     },
+     "remaining": {
+      "title": "Remaining",
+      "type": "integer"
+     },
+     "value": {
+      "title": "Value",
+      "type": "string"
+     }
+    },
+    "required": [
+     "value",
+     "remaining",
+     "cuts"
+    ],
+    "title": "Option",
+    "type": "object"
+   },
+   "PortalAudit": {
+    "properties": {
+     "cards": {
+      "title": "Cards",
+      "type": "integer"
+     },
+     "rules": {
+      "items": {
+       "$ref": "#/components/schemas/AuditRule"
+      },
+      "title": "Rules",
+      "type": "array"
+     },
+     "share": {
+      "title": "Share",
+      "type": "number"
+     },
+     "with_issues": {
+      "title": "With Issues",
+      "type": "integer"
+     }
+    },
+    "required": [
+     "cards",
+     "with_issues",
+     "share",
+     "rules"
+    ],
+    "title": "PortalAudit",
+    "type": "object"
+   },
+   "PortalReport": {
+    "properties": {
+     "audit": {
+      "$ref": "#/components/schemas/PortalAudit"
+     },
+     "cards": {
+      "title": "Cards",
+      "type": "integer"
+     },
+     "categories": {
+      "title": "Categories",
+      "type": "integer"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "fill": {
+      "items": {
+       "$ref": "#/components/schemas/MetricRow"
+      },
+      "title": "Fill",
+      "type": "array"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     }
+    },
+    "required": [
+     "created_at",
+     "cards",
+     "categories",
+     "source",
+     "audit",
+     "fill"
+    ],
+    "title": "PortalReport",
+    "type": "object"
+   },
+   "Position": {
+    "properties": {
+     "characteristics": {
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicSpec"
+      },
+      "title": "Characteristics",
+      "type": "array"
+     },
+     "code": {
+      "title": "Code",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "okpd2": {
+      "title": "Okpd2",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "unit": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Unit"
+     }
+    },
+    "required": [
+     "code",
+     "name",
+     "okpd2",
+     "characteristics",
+     "source"
+    ],
+    "title": "Position",
+    "type": "object"
+   },
+   "Question": {
+    "properties": {
+     "characteristic": {
+      "title": "Characteristic",
+      "type": "string"
+     },
+     "options": {
+      "items": {
+       "$ref": "#/components/schemas/Option"
+      },
+      "title": "Options",
+      "type": "array"
+     }
+    },
+    "required": [
+     "characteristic",
+     "options"
+    ],
+    "title": "Question",
+    "type": "object"
+   },
+   "Readiness": {
+    "properties": {
+     "dependencies": {
+      "items": {
+       "$ref": "#/components/schemas/DependencyStatus"
+      },
+      "title": "Dependencies",
+      "type": "array"
+     },
+     "status": {
+      "enum": [
+       "ok",
+       "degraded",
+       "fail"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "status",
+     "dependencies"
+    ],
+    "title": "Readiness",
+    "type": "object"
+   },
+   "Span": {
+    "description": "Фрагмент исходного текста: в наименовании или в описании, позиции в символах.",
+    "properties": {
+     "end": {
+      "title": "End",
+      "type": "integer"
+     },
+     "field": {
+      "enum": [
+       "name",
+       "description"
+      ],
+      "title": "Field",
+      "type": "string"
+     },
+     "start": {
+      "title": "Start",
+      "type": "integer"
+     },
+     "text": {
+      "title": "Text",
+      "type": "string"
+     }
+    },
+    "required": [
+     "field",
+     "start",
+     "end",
+     "text"
+    ],
+    "title": "Span",
+    "type": "object"
+   },
+   "Submission": {
+    "properties": {
+     "accepted": {
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicOut"
+      },
+      "title": "Accepted",
+      "type": "array"
+     },
+     "card": {
+      "$ref": "#/components/schemas/CardIn"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "decision_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Note"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "status": {
+      "enum": [
+       "pending",
+       "accepted",
+       "returned"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "created_at",
+     "card",
+     "accepted",
+     "status"
+    ],
+    "title": "Submission",
+    "type": "object"
+   },
+   "SubmissionIn": {
+    "properties": {
+     "accepted": {
+      "default": [],
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicOut"
+      },
+      "title": "Accepted",
+      "type": "array"
+     },
+     "card": {
+      "$ref": "#/components/schemas/CardIn"
+     }
+    },
+    "required": [
+     "card"
+    ],
+    "title": "SubmissionIn",
+    "type": "object"
+   },
+   "SubmissionView": {
+    "properties": {
+     "accepted": {
+      "items": {
+       "$ref": "#/components/schemas/CharacteristicOut"
+      },
+      "title": "Accepted",
+      "type": "array"
+     },
+     "card": {
+      "$ref": "#/components/schemas/CardIn"
+     },
+     "check": {
+      "$ref": "#/components/schemas/CheckOut"
+     },
+     "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+     },
+     "decision_note": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "title": "Decision Note"
+     },
+     "id": {
+      "title": "Id",
+      "type": "integer"
+     },
+     "status": {
+      "enum": [
+       "pending",
+       "accepted",
+       "returned"
+      ],
+      "title": "Status",
+      "type": "string"
+     }
+    },
+    "required": [
+     "id",
+     "created_at",
+     "card",
+     "accepted",
+     "status",
+     "check"
+    ],
+    "title": "SubmissionView",
+    "type": "object"
+   },
+   "ValidationError": {
+    "properties": {
+     "ctx": {
+      "title": "Context",
+      "type": "object"
+     },
+     "input": {
+      "title": "Input"
+     },
+     "loc": {
+      "items": {
+       "anyOf": [
+        {
+         "type": "string"
+        },
+        {
+         "type": "integer"
+        }
+       ]
+      },
+      "title": "Location",
+      "type": "array"
+     },
+     "msg": {
+      "title": "Message",
+      "type": "string"
+     },
+     "type": {
+      "title": "Error Type",
+      "type": "string"
+     }
+    },
+    "required": [
+     "loc",
+     "msg",
+     "type"
+    ],
+    "title": "ValidationError",
+    "type": "object"
+   }
+  }
+ },
+ "info": {
+  "description": "API для Портала поставщиков: описание товара → характеристики, код КТРУ, замечания.",
+  "title": "Модуль автозаполнения характеристик СТЕ",
+  "version": "0.2.0"
+ },
+ "openapi": "3.1.0",
+ "paths": {
+  "/api/demo/submissions": {
+   "get": {
+    "operationId": "list_submissions_api_demo_submissions_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "items": {
+          "$ref": "#/components/schemas/Submission"
+         },
+         "title": "Response List Submissions Api Demo Submissions Get",
+         "type": "array"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Очередь модератора, новые сверху",
+    "tags": [
+     "стенд портала"
+    ]
+   },
+   "post": {
+    "operationId": "post_submission_api_demo_submissions_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/SubmissionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Submission"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Поставщик отправил заявку",
+    "tags": [
+     "стенд портала"
+    ]
+   }
+  },
+  "/api/demo/submissions/{id}": {
+   "get": {
+    "operationId": "get_submission_api_demo_submissions__id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+       "title": "Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/SubmissionView"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Заявка с проверкой модуля",
+    "tags": [
+     "стенд портала"
+    ]
+   }
+  },
+  "/api/demo/submissions/{id}/decision": {
+   "post": {
+    "operationId": "post_decision_api_demo_submissions__id__decision_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "id",
+      "required": true,
+      "schema": {
+       "title": "Id",
+       "type": "integer"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/DecisionIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Submission"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Решение модератора",
+    "tags": [
+     "стенд портала"
+    ]
+   }
+  },
+  "/api/health": {
+   "get": {
+    "description": "Процесс жив. Зависимости не трогает.",
+    "operationId": "liveness_api_health_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "additionalProperties": {
+          "type": "string"
+         },
+         "title": "Response Liveness Api Health Get",
+         "type": "object"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Liveness",
+    "tags": [
+     "health"
+    ]
+   }
+  },
+  "/api/health/ready": {
+   "get": {
+    "description": "Готовность зависимостей: 200 — обязательные в порядке, 503 — одна из обязательных лежит.",
+    "operationId": "readiness_api_health_ready_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Readiness"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Readiness",
+    "tags": [
+     "health"
+    ]
+   }
+  },
+  "/api/jobs/ping": {
+   "post": {
+    "description": "Ставит проверочную задачу в очередь; воркер отметит её выполненной в Redis.",
+    "operationId": "enqueue_ping_api_jobs_ping_post",
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/JobAccepted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Enqueue Ping",
+    "tags": [
+     "jobs"
+    ]
+   }
+  },
+  "/api/jobs/{job_id}": {
+   "get": {
+    "operationId": "get_job_api_jobs__job_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "job_id",
+      "required": true,
+      "schema": {
+       "title": "Job Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/JobState"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Get Job",
+    "tags": [
+     "jobs"
+    ]
+   }
+  },
+  "/api/v1/autofill": {
+   "post": {
+    "description": "Кандидаты КТРУ, характеристики с источником в тексте, замечания и вопрос для сужения.",
+    "operationId": "post_autofill_api_v1_autofill_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AutofillIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AutofillOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Описание поставщика → черновик карточки",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/autofill/{session_id}/answer": {
+   "post": {
+    "operationId": "post_answer_api_v1_autofill__session_id__answer_post",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "session_id",
+      "required": true,
+      "schema": {
+       "title": "Session Id",
+       "type": "string"
+      }
+     }
+    ],
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/AnswerIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/AutofillOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Ответ на уточняющий вопрос",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/batch": {
+   "post": {
+    "description": "xlsx или csv со списком СТЕ; роли колонок угадываются по содержимому.\n\nОбработка — воркером через очередь; состояние — `GET /api/v1/batch/{job_id}`.",
+    "operationId": "post_batch_api_v1_batch_post",
+    "requestBody": {
+     "content": {
+      "multipart/form-data": {
+       "schema": {
+        "$ref": "#/components/schemas/Body_post_batch_api_v1_batch_post"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "202": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BatchAccepted"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Массовая загрузка: файл в очередь",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/batch/{job_id}": {
+   "get": {
+    "operationId": "get_batch_api_v1_batch__job_id__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "job_id",
+      "required": true,
+      "schema": {
+       "title": "Job Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/BatchState"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Состояние пакета",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/batch/{job_id}/result.xlsx": {
+   "get": {
+    "operationId": "get_batch_result_api_v1_batch__job_id__result_xlsx_get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "job_id",
+      "required": true,
+      "schema": {
+       "title": "Job Id",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {}
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Файл с результатом",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/check": {
+   "post": {
+    "description": "Замечания с обоснованием и ссылкой на правило; нужна поставщику и модератору.",
+    "operationId": "post_check_api_v1_check_post",
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "$ref": "#/components/schemas/CardIn"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/CheckOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Проверка готовой карточки",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/ktru/{code}": {
+   "get": {
+    "operationId": "get_ktru_api_v1_ktru__code__get",
+    "parameters": [
+     {
+      "in": "path",
+      "name": "code",
+      "required": true,
+      "schema": {
+       "title": "Code",
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/Position"
+        }
+       }
+      },
+      "description": "Successful Response"
+     },
+     "422": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/HTTPValidationError"
+        }
+       }
+      },
+      "description": "Validation Error"
+     }
+    },
+    "summary": "Позиция справочника",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/metrics": {
+   "get": {
+    "description": "Результат последнего прогона `python -m app.tools.evaluate`.\n\nУ каждой метрики — значение, размер выборки и способ расчёта.",
+    "operationId": "get_metrics_api_v1_metrics_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/MetricsOut"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Качество на золотом наборе",
+    "tags": [
+     "модуль"
+    ]
+   }
+  },
+  "/api/v1/metrics/portal": {
+   "get": {
+    "description": "Результат последнего прогона `python -m app.tools.portal_report`.\n\nКарточки СТЕ с публичного API портала: сколько нарушают правила модерации (с примерами-ссылками)\nи насколько значения, извлечённые модулем из текста, совпадают с введёнными поставщиком.",
+    "operationId": "get_portal_report_api_v1_metrics_portal_get",
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/PortalReport"
+        }
+       }
+      },
+      "description": "Successful Response"
+     }
+    },
+    "summary": "Живые карточки портала: аудит и заполнение",
+    "tags": [
+     "модуль"
+    ]
+   }
+  }
+ }
+}
