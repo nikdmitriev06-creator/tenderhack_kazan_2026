@@ -51,3 +51,20 @@ def test_mine_finds_new_abbreviation_with_definition() -> None:
     assert "ФЛАКОН" not in cands  # обычное слово заглавными
     assert "III" not in cands  # римская цифра
     assert cands["АЛТ"].known
+
+
+def test_portal_abbreviations_are_in_the_seed() -> None:
+    # Сокращения из наименований и характеристик 2 549 СТЕ портала (mine_abbreviations, 02.10.2026).
+    g = Glossary.load()
+    text = g.expand(
+        "Полуботинки, подошва КЩС, МБС, верх ТПУ. Реактив ЧДА. Признак ЖНВЛП. Замок для СКУД"
+    )
+    for full in [
+        "кислотно-щелочестойкая",
+        "маслобензостойкая",
+        "термопластичный полиуретан",
+        "чистый для анализа",
+        "жизненно необходимые",
+        "контроля и управления доступом",
+    ]:
+        assert full in text, full
