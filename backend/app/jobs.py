@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field
 
 # Очередь durable, её объявляют и API, и воркер: сообщение не теряется, пока воркер лежит.
 PING_QUEUE = RabbitQueue("jobs.ping", durable=True)
-QUEUES = (PING_QUEUE,)
+BATCH_QUEUE = RabbitQueue("jobs.batch", durable=True)
+QUEUES = (PING_QUEUE, BATCH_QUEUE)
 
 
 def job_key(job_id: str) -> str:
@@ -36,3 +37,13 @@ class JobState(BaseModel):
 class JobAccepted(BaseModel):
     job_id: str
     status_url: str
+
+
+class BatchJob(BaseModel):
+    """Пакет СТЕ: строки и состояние лежат в Redis (`app.batch.BatchStore`).
+
+    В сообщении — только id: файл не гоняется через брокер.
+    """
+
+    job_id: str
+    created_at: datetime = Field(default_factory=utcnow)

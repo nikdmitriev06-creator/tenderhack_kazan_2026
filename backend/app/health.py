@@ -88,16 +88,23 @@ def build_checks(res: Resources) -> list[Check]:
             raise RuntimeError("брокер не отвечает на ping")
         return "соединение есть"
 
+    # Чат и эмбеддинги проверяются раздельно: облачный провайдер может отдавать одно без другого
+    # (Ollama Cloud: чат-модели есть, /api/embed отвечает 401).
     async def llm() -> str:
-        missing = await res.llm.missing_models()
         where = f"{settings.llm_provider} {settings.llm_base_url}"
-        if missing:
-            raise RuntimeError(f"{where}: нет моделей {', '.join(missing)}")
-        return f"{where}: {settings.llm_chat_model}, {settings.embed_model}"
+        if settings.llm_chat_model in await res.llm.missing_models():
+            raise RuntimeError(f"{where}: нет модели {settings.llm_chat_model}")
+        return f"{where}: {settings.llm_chat_model}"
+
+    async def embeddings() -> str:
+        if settings.embed_model in await res.llm.missing_models():
+            raise RuntimeError(f"нет модели {settings.embed_model}")
+        return settings.embed_model
 
     return [
         Check("postgres", required=True, probe=postgres),
         Check("redis", required=True, probe=redis),
         Check("rabbitmq", required=True, probe=rabbitmq),
         Check("llm", required=settings.llm_required, probe=llm),
+        Check("embeddings", required=False, probe=embeddings),
     ]

@@ -16,6 +16,9 @@ x-backend-env: &backend-env
   EMBED_API_KEY: ${EMBED_API_KEY:-}
   EMBED_MODEL: ${EMBED_MODEL:-bge-m3}
   LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # Справочник позиций (КТРУ/СПГЗ): файлы из тома ./data, через запятую.
+  # Пусто — демо-справочник из репозитория; справочник организаторов — файлы в ./data (например, data/ktru.csv).
+  CATALOG_PATHS: ${CATALOG_PATHS:-}
 
 services:
   postgres:
@@ -80,6 +83,8 @@ services:
     build: ./backend
     image: tenderhack-kazan-backend:dev
     environment: *backend-env
+    volumes:
+      - ./data:/app/data
     ports:
       - "${API_PORT:-8000}:8000"
     extra_hosts:
@@ -102,6 +107,8 @@ services:
     image: tenderhack-kazan-backend:dev
     command: ["faststream", "run", "app.worker:app"]
     environment: *backend-env
+    volumes:
+      - ./data:/app/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

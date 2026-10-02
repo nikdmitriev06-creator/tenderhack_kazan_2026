@@ -4,9 +4,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import health, jobs
+from app.api import demo, health, jobs, v1
 from app.config import get_settings
-from app.resources import Resources
+from app.demo import PgSubmissionRepo
+from app.resources import Resources, build_deps
 
 
 @asynccontextmanager
@@ -16,6 +17,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         level=settings.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     app.state.resources = Resources.create(settings)
+    app.state.deps = build_deps(app.state.resources)
+    app.state.submissions = PgSubmissionRepo(app.state.resources.engine)
     try:
         yield
     finally:
@@ -23,9 +26,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="TenderHack Kazan 2026", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(
+        title="Модуль автозаполнения характеристик СТЕ",
+        description=(
+            "API для Портала поставщиков: описание товара → характеристики, код КТРУ, замечания."
+        ),
+        version="0.2.0",
+        lifespan=lifespan,
+        docs_url="/api/docs",
+        openapi_url="/api/openapi.json",
+        redoc_url=None,
+    )
     app.include_router(health.router, prefix="/api")
     app.include_router(jobs.router, prefix="/api")
+    app.include_router(v1.router, prefix="/api")
+    app.include_router(demo.router, prefix="/api")
     return app
 
 
