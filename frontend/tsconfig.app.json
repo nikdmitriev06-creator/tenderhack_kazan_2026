@@ -22,5 +22,7 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Тесты (node --test) проверяет tsconfig.test.json: там есть типы Node, здесь их быть не должно.
+  "exclude": ["src/**/*.test.ts"]
 }
