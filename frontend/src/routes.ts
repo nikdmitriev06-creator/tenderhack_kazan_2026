@@ -1,6 +1,6 @@
 import type { NavGroup, NavItem } from './layout/Layout'
 
-export type RouteId = 'create' | 'batch' | 'moderation' | 'metrics' | 'developers' | 'ui' | 'not-found'
+export type RouteId = 'create' | 'batch' | 'moderation' | 'metrics' | 'developers' | 'ui' | 'preview' | 'not-found'
 
 const PATHS: Record<string, RouteId> = {
   '/': 'create',
@@ -10,6 +10,8 @@ const PATHS: Record<string, RouteId> = {
   '/developers': 'developers',
   // Витрина компонентов дизайн-системы: для разработки, в навигацию не входит.
   '/ui': 'ui',
+  // Пробная сборка: сравнение дизайн-систем (временно), вне навигации.
+  '/preview': 'preview',
 }
 
 export function resolveRoute(path: string): RouteId {
@@ -38,5 +40,5 @@ export const NAV_ASIDE: NavItem[] = [
 /** Пункт навигации, который подсвечивается на экране (у not-found и ui — никакой). */
 export function navHref(route: RouteId): string | null {
   const entry = Object.entries(PATHS).find(([, id]) => id === route)
-  return entry && route !== 'ui' ? entry[0] : null
+  return entry && route !== 'ui' && route !== 'preview' ? entry[0] : null
 }

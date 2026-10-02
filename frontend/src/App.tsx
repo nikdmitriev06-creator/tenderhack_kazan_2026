@@ -8,6 +8,7 @@ import { MetricsPage } from './pages/metrics/MetricsPage'
 import { ModerationPage } from './pages/moderation/ModerationPage'
 import { NotFound } from './pages/NotFound'
 import { UiKitPage } from './pages/UiKitPage'
+import { PreviewPage } from './preview/PreviewPage'
 import { NAV_ASIDE, NAV_GROUPS, navHref, resolveRoute, type RouteId } from './routes'
 
 const SCREENS: Record<RouteId, () => ReactNode> = {
@@ -17,11 +18,14 @@ const SCREENS: Record<RouteId, () => ReactNode> = {
   metrics: () => <MetricsPage />,
   developers: () => <DevelopersPage />,
   ui: () => <UiKitPage />,
+  preview: () => <PreviewPage />,
   'not-found': () => <NotFound />,
 }
 
 export default function App() {
   const route = resolveRoute(usePath())
+  // Сравнение дизайн-систем рисует свою шапку и свои стили.
+  if (route === 'preview') return <PreviewPage />
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader groups={NAV_GROUPS} aside={NAV_ASIDE} current={navHref(route)} roleSwitch />
