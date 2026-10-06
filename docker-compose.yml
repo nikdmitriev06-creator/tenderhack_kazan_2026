@@ -1,0 +1,131 @@
+name: tenderhack-kazan
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tenderhack}:${POSTGRES_PASSWORD:-tenderhack}@postgres:5432/${POSTGRES_DB:-tenderhack}
+  REDIS_URL: redis://redis:6379/0
+  RABBITMQ_URL: amqp://${RABBITMQ_USER:-tenderhack}:${RABBITMQ_PASSWORD:-tenderhack}@rabbitmq:5672/
+  # LLM: ollama (локально или профиль llm) либо openai (наш GPU-сервер, OpenAI-совместимый API)
+  LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+  LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434}
+  LLM_API_KEY: ${LLM_API_KEY:-}
+  LLM_CHAT_MODEL: ${LLM_CHAT_MODEL:-qwen3:4b}
+  LLM_THINK: ${LLM_THINK:-false}
+  LLM_REQUIRED: ${LLM_REQUIRED:-false}
+  EMBED_PROVIDER: ${EMBED_PROVIDER:-}
+  EMBED_BASE_URL: ${EMBED_BASE_URL:-}
+  EMBED_API_KEY: ${EMBED_API_KEY:-}
+  EMBED_MODEL: ${EMBED_MODEL:-bge-m3}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  # Справочник позиций (КТРУ/СПГЗ): файлы из тома ./data, через запятую.
+  # Пусто — демо-справочник из репозитория; справочник организаторов — файлы в ./data (например, data/ktru.csv).
+  CATALOG_PATHS: ${CATALOG_PATHS:-}
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tenderhack}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tenderhack}
+      POSTGRES_DB: ${POSTGRES_DB:-tenderhack}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-tenderhack}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-tenderhack}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_PORT:-15672}:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Локальные модели. Запуск: docker compose --profile llm up -d; GPU — см. compose.gpu.yaml.
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama:/root/.ollama
+
+  migrate:
+    build: ./backend
+    image: tenderhack-kazan-backend:dev
+    command: ["alembic", "upgrade", "head"]
+    environment: *backend-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build: ./backend
+    image: tenderhack-kazan-backend:dev
+    environment: *backend-env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "${API_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build: ./backend
+    image: tenderhack-kazan-backend:dev
+    command: ["faststream", "run", "app.worker:app"]
+    environment: *backend-env
+    volumes:
+      - ./data:/app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  web:
+    build: ./frontend
+    image: tenderhack-kazan-web:dev
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  ollama:

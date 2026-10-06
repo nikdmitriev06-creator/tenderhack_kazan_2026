@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/*
+ * Токены дизайн-системы (DESIGN.md). Метафора — корректура: белый лист, чёрные чернила,
+ * жёлтый маркер для найденного и красный карандаш для исправлений. Других цветов в интерфейсе нет.
+ */
+@theme {
+  --font-sans: "Onest Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-serif: "PT Serif", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --color-canvas: #eceef0;
+  --color-surface: #ffffff;
+  --color-raised: #f5f6f7;
+  --color-line: #dcdfe3;
+  --color-line-strong: #868d98;
+
+  --color-ink: #17191c;
+  --color-muted: #5b616a;
+  --color-subtle: #6b717b;
+
+  /* Главная кнопка — чернилами: цвет в интерфейсе означает смысл, а не важность. */
+  --color-accent: #17191c;
+  --color-on-accent: #ffffff;
+  --color-accent-text: #17191c;
+  --color-accent-soft: #eef0f3;
+
+  /* Ссылки и шапка («хром» вокруг листа). В базовой палитре — те же чернила и белый лист. */
+  --color-link: #17191c;
+  --color-chrome: #ffffff;
+  --color-chrome-ink: #17191c;
+  --color-chrome-muted: #5b616a;
+  --color-chrome-line: #dcdfe3;
+  --color-chrome-accent: #17191c;
+
+  --color-mark: #ffe98f;
+  --color-pencil: #c4301f;
+
+  --color-success: #2d6a3e;
+  --color-warning: #8a5700;
+  --color-danger: #c4301f;
+  --color-success-soft: color-mix(in oklab, var(--color-success) 9%, var(--color-surface));
+  --color-warning-soft: color-mix(in oklab, var(--color-warning) 9%, var(--color-surface));
+  --color-danger-soft: color-mix(in oklab, var(--color-danger) 8%, var(--color-surface));
+
+  --radius-ui: 4px;
+  --radius-panel: 6px;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    @apply min-h-dvh bg-canvas font-sans text-sm text-ink antialiased;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ink;
+  }
+
+  ::selection {
+    background: var(--color-mark);
+  }
+
+  /* Без задержки двойного тапа на телефоне. */
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgb(23 25 28 / 0.08);
+  }
+}
+
+@layer utilities {
+  /* Появление результата по очереди: задержку задаёт style="--i: N". */
+  .rise {
+    animation: rise 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+  }
+
+  /* Маркер «прокрашивается» слева направо, как выделитель по бумаге: так видно, что значение найдено в тексте. */
+  .marker {
+    background-image: linear-gradient(transparent 8%, var(--color-mark) 8%, var(--color-mark) 92%, transparent 92%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    animation: marker 0.5s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise,
+    .marker {
+      animation: none;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes marker {
+  from {
+    background-size: 0% 100%;
+  }
+}
