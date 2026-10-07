@@ -1,10 +1,22 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError, api, type AutofillOut, type CheckOut, type Issue, type Submission } from '../../api/v1.ts'
 import { PageBody, PageHeader } from '../../layout/Layout'
 import { navigate } from '../../lib/router'
 import { Button, Notice, Panel } from '../../ui'
 import { CharacteristicsBlock } from './CharacteristicsBlock'
-import { PREFILL_KEY, acceptAll, applyFix, editValue, mergeRows, rowsFrom, setDecision, toCardIn, type Row } from './createModel.ts'
+import {
+  PREFILL_KEY,
+  acceptAll,
+  applyFix,
+  editValue,
+  fillEmptyFromKtru,
+  ktruFillMessage,
+  mergeRows,
+  rowsFrom,
+  setDecision,
+  toCardIn,
+  type Row,
+} from './createModel.ts'
 import { DescriptionField } from './DescriptionField'
 import { EXAMPLES } from './examples'
 import { IssueList } from './IssueNote'
@@ -40,6 +52,15 @@ export function CreatePage() {
   const [submitted, setSubmitted] = useState<Submission | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [expired, setExpired] = useState(false)
+  const [fillingKtru, setFillingKtru] = useState(false)
+  const [ktruFillNote, setKtruFillNote] = useState<string | null>(null)
+  const ktruFillSeq = useRef(0)
+  const rowsRef = useRef<Row[] | null>(null)
+  const ktruCodeRef = useRef<string | null>(null)
+
+  const rememberRows = (next: Row[] | null) => {
+    rowsRef.current = next
+  }
 
   useEffect(() => {
     document.title = 'Создание СТЕ: автозаполнение характеристик'
@@ -47,8 +68,14 @@ export function CreatePage() {
 
   // keep — после ответа на вопрос: решения человека по строкам сохраняются.
   const show = (next: AutofillOut, keep = false) => {
+    ktruFillSeq.current += 1
+    setFillingKtru(false)
+    setKtruFillNote(null)
+    const nextRows = keep && rowsRef.current ? mergeRows(rowsRef.current, next.characteristics) : rowsFrom(next.characteristics)
+    rememberRows(nextRows)
+    ktruCodeRef.current = next.ktru.final_code ?? null
     setOut(next)
-    setRows((prev) => (keep && prev ? mergeRows(prev, next.characteristics) : rowsFrom(next.characteristics)))
+    setRows(nextRows)
     setCheck(null)
   }
 
@@ -87,6 +114,36 @@ export function CreatePage() {
   const ktruCode = out?.ktru.final_code ?? null
   const card = useMemo(() => toCardIn(name, description, rows ?? [], ktruCode), [name, description, rows, ktruCode])
 
+  const fillByKtru = async () => {
+    const code = ktruCode
+    const currentRows = rows
+    if (!code || !currentRows) return
+    const seq = ++ktruFillSeq.current
+    setFillingKtru(true)
+    setKtruFillNote(null)
+    setError(null)
+    try {
+      const position = await api.ktru(code)
+      if (seq !== ktruFillSeq.current || ktruCodeRef.current !== code) return
+      const freshRows = rowsRef.current
+      if (!freshRows) return
+      if (position.characteristics.length === 0) {
+        setKtruFillNote(ktruFillMessage({ rows: freshRows, filled: 0, kept: 0, ambiguous: 0, unmapped: 0 }, true))
+        return
+      }
+      const result = fillEmptyFromKtru(freshRows, position.characteristics)
+      rememberRows(result.rows)
+      setRows(result.rows)
+      setCheck(null)
+      setKtruFillNote(ktruFillMessage(result, false))
+    } catch (e) {
+      if (seq !== ktruFillSeq.current) return
+      setError(errorText(e))
+    } finally {
+      if (seq === ktruFillSeq.current) setFillingKtru(false)
+    }
+  }
+
   const runCheck = async () => {
     setChecking(true)
     setError(null)
@@ -114,11 +171,16 @@ export function CreatePage() {
 
   const fix = (issue: Issue) => {
     if (issue.field === 'name' && issue.fix?.value) setName(issue.fix.value)
-    else if (rows) setRows(applyFix(rows, issue))
+    else if (rowsRef.current) {
+      const next = applyFix(rowsRef.current, issue)
+      rememberRows(next)
+      setRows(next)
+    }
     setCheck(null)
   }
 
   const change = (next: Row[]) => {
+    rememberRows(next)
     setRows(next)
     setCheck(null)
   }
@@ -226,13 +288,31 @@ export function CreatePage() {
               title="Характеристики"
               flush
               actions={
-                rows && rows.some((r) => r.decision === 'pending' && r.value !== null && r.status !== 'conflict') && !locked ? (
+                rows && rows.some((r) => r.decision === 'pending' && (r.edited ?? r.value) !== null && r.status !== 'conflict') && !locked ? (
                   <button type="button" onClick={() => change(acceptAll(rows))} className="text-[13px] text-link underline decoration-link/35 underline-offset-4">
                     Принять всё
                   </button>
                 ) : undefined
               }
             >
+              {ktruCode && phase !== 'loading' && rows && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
+                  <p className="min-w-0 text-[13px] text-muted">
+                    КТРУ{' '}
+                    <span className="font-mono text-ink" translate="no">
+                      {ktruCode}
+                    </span>
+                  </p>
+                  <Button size="sm" onClick={fillByKtru} loading={fillingKtru} loadingText="Заполняем…" disabled={locked || answering}>
+                    Заполнить характеристики по КТРУ
+                  </Button>
+                  {ktruFillNote && (
+                    <p role="status" className="w-full text-[13px] text-muted">
+                      {ktruFillNote}
+                    </p>
+                  )}
+                </div>
+              )}
               <CharacteristicsBlock
                 rows={phase === 'loading' ? null : rows}
                 loading={phase === 'loading'}

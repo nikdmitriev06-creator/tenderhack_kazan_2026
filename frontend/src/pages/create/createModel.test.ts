@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { CharacteristicOut, Issue } from '../../api/v1.ts'
-import { acceptAll, applyFix, editValue, fieldLabel, highlightSegments, mergeRows, rowsFrom, setDecision, toCardIn } from './createModel.ts'
+import { acceptAll, applyFix, editValue, fieldLabel, fillEmptyFromKtru, highlightSegments, ktruFillMessage, mergeRows, rowsFrom, setDecision, toCardIn } from './createModel.ts'
 
 const char = (over: Partial<CharacteristicOut>): CharacteristicOut => ({
   name: 'Формат',
@@ -159,4 +159,54 @@ test('выбор допустимого значения принимается 
       ['Класс', 'B'],
     ],
   )
+})
+
+test('заполнение по КТРУ ставит только единственное значение и только в пустую строку', () => {
+  const rows = rowsFrom([
+    char({ name: 'Цветность', value: null, status: 'not_found', values: ['Белая'] }),
+    char({ name: 'Формат', value: null, status: 'not_found', values: ['A3', 'A4'] }),
+    char({ name: 'Белизна', value: null, status: 'not_found', unit: '%', range: { min: 90, max: 175 } }),
+    char({ name: 'Класс', value: 'B', status: 'filled' }),
+  ])
+  const edited = editValue(rows, 'Класс', 'C')
+  const removed = setDecision(
+    rowsFrom([char({ name: 'Плотность', value: null, status: 'not_found', values: ['80'] })]),
+    'Плотность',
+    'removed',
+  )
+  const result = fillEmptyFromKtru(
+    [...edited, ...removed],
+    [
+      { name: 'цветность', values: ['Белая', 'Белая'] },
+      { name: 'Формат', values: ['A3', 'A4'] },
+      { name: 'Белизна', values: [] },
+      { name: 'Класс', values: ['A'] },
+      { name: 'Плотность', values: ['80'], unit: 'г/м2' },
+      { name: 'Лишняя', values: ['да'] },
+    ],
+  )
+  assert.equal(result.rows[0].edited, 'Белая')
+  assert.equal(result.rows[0].decision, 'pending')
+  assert.equal(result.rows[1].edited, null)
+  assert.equal(result.rows[2].edited, null)
+  assert.equal(result.rows[3].edited, 'C')
+  assert.equal(result.rows[4].decision, 'removed')
+  assert.equal(result.rows[4].edited, null)
+  assert.equal(result.filled, 1)
+  assert.equal(result.kept, 2)
+  assert.equal(result.ambiguous, 2)
+  assert.equal(result.unmapped, 1)
+  assert.match(ktruFillMessage(result, false), /Заполнены пустые характеристики: 1/)
+  assert.match(ktruFillMessage(result, false), /не изменены/)
+  assert.equal(ktruFillMessage(result, true), 'У этой позиции КТРУ нет характеристик для заполнения.')
+})
+
+test('повторное заполнение не затирает значение, уже подставленное из КТРУ', () => {
+  const once = fillEmptyFromKtru(rowsFrom([char({ name: 'Цветность', value: null, status: 'not_found' })]), [
+    { name: 'Цветность', values: ['Белая'] },
+  ])
+  const twice = fillEmptyFromKtru(once.rows, [{ name: 'Цветность', values: ['Серая'] }])
+  assert.equal(twice.rows[0].edited, 'Белая')
+  assert.equal(twice.filled, 0)
+  assert.equal(twice.kept, 1)
 })

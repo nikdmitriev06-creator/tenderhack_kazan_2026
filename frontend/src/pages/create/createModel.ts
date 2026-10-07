@@ -59,6 +59,96 @@ export function editValue(rows: Row[], name: string, value: string): Row[] {
   return update(rows, name, { edited: value, decision: 'accepted' })
 }
 
+/** Ключ сравнения имён характеристик: регистр, ё→е, лишние пробелы и точка в конце. */
+export function foldName(text: string): string {
+  return text.trim().replace(/\.+$/u, '').replace(/\s+/gu, ' ').toLowerCase().replaceAll('ё', 'е')
+}
+
+export type KtruSpecLike = {
+  name: string
+  unit?: string | null
+  values?: readonly string[] | null
+}
+
+export type KtruFillResult = {
+  rows: Row[]
+  filled: number
+  kept: number
+  ambiguous: number
+  unmapped: number
+}
+
+function uniqueSpecValues(values: readonly string[] | null | undefined): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (const raw of values ?? []) {
+    const value = raw.trim()
+    if (!value) continue
+    const key = foldName(value)
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(value)
+  }
+  return out
+}
+
+/**
+ * Подставляет в пустые строки единственное значение из спецификации КТРУ.
+ * Уже введённое, принятое извлечение и убранные строки не меняются.
+ * Несколько вариантов или только диапазон — строка остаётся пустой: одно значение выбрать нельзя.
+ */
+export function fillEmptyFromKtru(rows: Row[], specs: readonly KtruSpecLike[]): KtruFillResult {
+  const byName = new Map<string, KtruSpecLike>()
+  for (const spec of specs) {
+    const key = foldName(spec.name)
+    if (key && !byName.has(key)) byName.set(key, spec)
+  }
+  const used = new Set<string>()
+  let filled = 0
+  let kept = 0
+  let ambiguous = 0
+  const next = rows.map((row) => {
+    const key = foldName(row.name)
+    const spec = byName.get(key)
+    if (spec) used.add(key)
+    const hasValue = (currentValue(row)?.trim() ?? '') !== ''
+    if (hasValue || row.decision === 'removed') {
+      kept += 1
+      return row
+    }
+    const only = spec ? uniqueSpecValues(spec.values) : []
+    if (!spec || only.length !== 1) {
+      ambiguous += 1
+      return row
+    }
+    filled += 1
+    return { ...row, edited: only[0], unit: row.unit ?? spec.unit ?? null }
+  })
+  let unmapped = 0
+  for (const key of byName.keys()) {
+    if (!used.has(key)) unmapped += 1
+  }
+  return { rows: next, filled, kept, ambiguous, unmapped }
+}
+
+/** Текст под кнопкой: что заполнилось и что сознательно не трогали. */
+export function ktruFillMessage(result: KtruFillResult, catalogEmpty: boolean): string {
+  if (catalogEmpty) return 'У этой позиции КТРУ нет характеристик для заполнения.'
+  if (result.filled === 0 && result.unmapped > 0 && result.ambiguous === 0 && result.kept === 0) {
+    return 'Характеристики позиции не совпали со строками карточки. Текущие значения не изменены.'
+  }
+  if (result.filled === 0 && result.ambiguous === 0) {
+    return 'Пустых характеристик нет: уже введённые значения не изменены.'
+  }
+  if (result.filled === 0) {
+    return 'В справочнике нет однозначного значения для пустых строк. Укажите их вручную — уже введённое сохранено.'
+  }
+  const parts = [`Заполнены пустые характеристики: ${result.filled}.`]
+  if (result.kept > 0) parts.push('Уже введённые значения не изменены.')
+  if (result.ambiguous > 0) parts.push('Остальные нельзя выбрать однозначно — укажите их вручную.')
+  return parts.join(' ')
+}
+
 /** Применяет исправление из замечания к строке характеристики (поле characteristics.<имя>). */
 export function applyFix(rows: Row[], issue: Issue): Row[] {
   const fix = issue.fix
