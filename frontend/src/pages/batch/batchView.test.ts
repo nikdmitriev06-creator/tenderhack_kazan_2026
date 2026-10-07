@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { BatchRowResult, BatchState } from '../../api/v1.ts'
-import { STATUS_TEXT, isFinished, summarize } from './batchView.ts'
+import { STATUS_TEXT, isFinished, sessionStatusText, summarize } from './batchView.ts'
 
 const row = (status: BatchRowResult['status'], n: number): BatchRowResult => ({
   row: n,
@@ -28,6 +28,15 @@ test('сводка считает строки по статусам', () => {
 
 test('у каждого статуса есть слово для человека', () => {
   for (const key of ['ready', 'needs_answer', 'needs_fix', 'not_found', 'skipped', 'failed'] as const) assert.ok(STATUS_TEXT[key]?.length > 0)
+})
+
+test('статус файла не зависит от того, выбран ли он', () => {
+  const base = { uploading: false, missing: false, error: null, jobId: 'j', filename: 'a.xlsx', state: state([row('ready', 1)], 'running') }
+  assert.equal(sessionStatusText(base), 'обрабатываем')
+  assert.equal(sessionStatusText({ ...base, state: state([], 'done') }), 'готово')
+  assert.equal(sessionStatusText({ ...base, state: null, uploading: true, jobId: null }), 'загружаем')
+  assert.equal(sessionStatusText({ ...base, state: null, jobId: null, filename: '', error: 'сеть' }), 'ошибка')
+  assert.equal(sessionStatusText({ ...base, state: state([], 'done'), missing: true }), 'не найден')
 })
 
 test('опрос останавливается на done и failed', () => {

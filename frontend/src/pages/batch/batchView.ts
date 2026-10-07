@@ -21,3 +21,28 @@ export function summarize(state: BatchState): Record<Status, number> {
 export function isFinished(state: BatchState): boolean {
   return state.status === 'done' || state.status === 'failed'
 }
+
+const JOB_STATUS: Record<BatchState['status'], string> = {
+  queued: 'в очереди',
+  running: 'обрабатываем',
+  done: 'готово',
+  failed: 'сбой',
+}
+
+/** Короткий статус файла в списке. У каждого файла свой, от выбранного не зависит. */
+export function sessionStatusText(session: {
+  uploading: boolean
+  missing: boolean
+  error: string | null
+  jobId: string | null
+  filename: string
+  state: BatchState | null
+}): string {
+  if (session.uploading) return 'загружаем'
+  if (session.missing) return 'не найден'
+  if (session.error && !session.state) return 'ошибка'
+  if (session.state) return JOB_STATUS[session.state.status]
+  if (session.jobId) return 'обновляем'
+  if (session.filename) return 'выбран'
+  return 'новый'
+}
