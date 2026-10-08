@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { AppHeader } from './layout/Layout'
-import { usePath } from './lib/router'
+import { routePath, useLocation } from './lib/router'
 import { BatchPage } from './pages/batch/BatchPage'
 import { CreatePage } from './pages/create/CreatePage'
 import { DevelopersPage } from './pages/developers/DevelopersPage'
@@ -23,13 +23,15 @@ const SCREENS: Record<RouteId, () => ReactNode> = {
 }
 
 export default function App() {
-  const route = resolveRoute(usePath())
+  const location = useLocation()
+  const route = resolveRoute(routePath(location))
   // Сравнение дизайн-систем рисует свою шапку и свои стили.
   if (route === 'preview') return <PreviewPage />
+  const screen = route === 'create' ? <CreatePage key={location.split('#')[0]} /> : SCREENS[route]()
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader groups={NAV_GROUPS} aside={NAV_ASIDE} current={navHref(route)} roleSwitch />
-      {SCREENS[route]()}
+      {screen}
     </div>
   )
 }

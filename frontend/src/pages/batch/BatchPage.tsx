@@ -1,10 +1,10 @@
-import { useEffect, useRef, type KeyboardEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import { ApiError, api, type BatchRowResult, type BatchState } from '../../api/v1.ts'
 import { PageBody, PageHeader } from '../../layout/Layout'
 import { cx } from '../../lib/cx'
 import { navigate } from '../../lib/router'
 import { Badge, Button, EmptyState, Notice, Panel, Table, type Column, type Tone } from '../../ui'
-import { PREFILL_KEY } from '../create/createModel.ts'
+import { characteristicsHref } from '../create/formLink.ts'
 import { pollJobIds, sessionById, type BatchSession } from './batchSessions.ts'
 import {
   addBatchDraft,
@@ -20,16 +20,12 @@ import { STATUS_TEXT, sessionStatusText, summarize } from './batchView.ts'
 
 const POLL_MS = 1000
 
-function openInForm(event: MouseEvent<HTMLAnchorElement>, row: BatchRowResult) {
-  try {
-    sessionStorage.setItem(PREFILL_KEY, JSON.stringify({ name: row.name, description: '' }))
-  } catch {
-    // без sessionStorage форма просто откроется пустой
-  }
-  navigate(event, '/')
+function formHref(row: BatchRowResult, jobId: string | null): string {
+  return characteristicsHref({ name: row.name, ktru: row.ktru_code, job: jobId, row: row.row })
 }
 
-const COLUMNS: Column<BatchRowResult>[] = [
+function columns(jobId: string | null): Column<BatchRowResult>[] {
+  return [
   { key: 'row', header: '№', render: (r) => <span className="tabular-nums text-muted">{r.row}</span>, className: 'w-12' },
   { key: 'name', header: 'Наименование', render: (r) => r.name || <span className="text-subtle">без наименования</span> },
   {
@@ -76,12 +72,17 @@ const COLUMNS: Column<BatchRowResult>[] = [
     header: '',
     render: (r) =>
       r.name && r.status !== 'ready' ? (
-        <a href="/" onClick={(e) => openInForm(e, r)} className="text-[13px] text-link underline decoration-line-strong/60 underline-offset-4">
+        <a
+          href={formHref(r, jobId)}
+          onClick={(e) => navigate(e, formHref(r, jobId))}
+          className="text-[13px] text-link underline decoration-line-strong/60 underline-offset-4"
+        >
           Открыть в форме
         </a>
       ) : null,
   },
-]
+  ]
+}
 
 function statusTone(text: string): Tone {
   if (text === 'готово') return 'success'
@@ -292,7 +293,7 @@ function ResultPanel({ session }: { session: BatchSession }) {
         {counts.skipped > 0 && <span className="text-muted">пустых {counts.skipped}</span>}
         {counts.failed > 0 && <span className="text-pencil">сбоев {counts.failed}</span>}
       </p>
-      <Table columns={COLUMNS} rows={state.rows} rowKey={(r) => String(r.row)} caption="Результат по строкам файла" />
+      <Table columns={columns(session.jobId)} rows={state.rows} rowKey={(r) => String(r.row)} caption="Результат по строкам файла" />
     </Panel>
   )
 }

@@ -13,7 +13,7 @@ from app.demo import (
     SubmissionRepo,
     SubmissionView,
 )
-from app.pipeline import check
+from app.pipeline import check, moderation_block
 
 router = APIRouter(prefix="/demo", tags=["стенд портала"])
 
@@ -28,7 +28,10 @@ RepoDep = Annotated[SubmissionRepo, Depends(get_submissions)]
 
 
 @router.post("/submissions", status_code=201, summary="Поставщик отправил заявку")
-async def post_submission(s: SubmissionIn, repo: RepoDep) -> Submission:
+async def post_submission(s: SubmissionIn, repo: RepoDep, deps: DepsDep) -> Submission:
+    reason = moderation_block(s.card, deps)
+    if reason is not None:
+        raise HTTPException(status_code=422, detail=reason)
     return await repo.add(s)
 
 

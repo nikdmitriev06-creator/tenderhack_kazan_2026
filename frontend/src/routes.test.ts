@@ -1,9 +1,15 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
+import { routePath } from './lib/router.ts'
 import { NAV_GROUPS, resolveRoute } from './routes.ts'
 
 test('корень — форма создания СТЕ', () => {
   assert.equal(resolveRoute('/'), 'create')
+})
+
+test('адрес характеристик остаётся формой создания', () => {
+  assert.equal(resolveRoute(routePath('/?section=characteristics&name=Бумага#characteristics')), 'create')
+  assert.equal(routePath('/batch?x=1'), '/batch')
 })
 
 test('хвостовой слэш не меняет экран', () => {

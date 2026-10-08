@@ -154,3 +154,45 @@ def test_multi_word_value_present_in_the_name_is_not_a_contradiction() -> None:
     )
     found = _by_field(detect(wrong, chair), "characteristics.Требования к цветовому решению")
     assert [i.kind for i in found] == ["mismatch"]
+
+
+def test_allowed_value_is_not_a_conflict() -> None:
+    card = CardIn(name="Бумага цветная", characteristics=[CharIn(name="Формат", value="A4")])
+    assert _by_field(detect(card, COLOR), "characteristics.Формат") == []
+
+
+def test_number_outside_range_names_the_bounds() -> None:
+    bags = CATALOG.get("22.22.11.000-00000201")
+    card = CardIn(
+        name="Мешки для мусора", characteristics=[CharIn(name="Толщина", value="200", unit="мкм")]
+    )
+    found = _by_field(detect(card, bags), "characteristics.Толщина")
+    assert found[0].severity == "block"
+    assert "200" in found[0].message
+    assert "120" in found[0].message
+
+
+def test_several_conflicts_stay_together() -> None:
+    card = CardIn(
+        name="Бумага цветная",
+        characteristics=[
+            CharIn(name="Формат", value="A5"),
+            CharIn(name="Интенсивность цвета", value="Белый"),
+        ],
+    )
+    fields = {issue.field for issue in detect(card, COLOR) if issue.severity == "block"}
+    assert "characteristics.Формат" in fields
+    assert "characteristics.Интенсивность цвета" in fields
+
+
+def test_corrected_value_drops_only_its_conflict() -> None:
+    fixed = CardIn(
+        name="Бумага цветная",
+        characteristics=[
+            CharIn(name="Формат", value="A4"),
+            CharIn(name="Интенсивность цвета", value="Белый"),
+        ],
+    )
+    found = detect(fixed, COLOR)
+    assert _by_field(found, "characteristics.Формат") == []
+    assert _by_field(found, "characteristics.Интенсивность цвета")

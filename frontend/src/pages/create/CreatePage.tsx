@@ -4,6 +4,7 @@ import { PageBody, PageHeader } from '../../layout/Layout'
 import { navigate } from '../../lib/router'
 import { Button, Notice, Panel } from '../../ui'
 import { CharacteristicsBlock } from './CharacteristicsBlock'
+import { readFormTarget } from './formLink.ts'
 import {
   PREFILL_KEY,
   acceptAll,
@@ -12,6 +13,7 @@ import {
   fillEmptyFromKtru,
   ktruFillMessage,
   mergeRows,
+  moderationBlock,
   rowsFrom,
   setDecision,
   toCardIn,
@@ -39,16 +41,27 @@ function readPrefill(): { name: string; description: string } | null {
 const errorText = (e: unknown) => (e instanceof ApiError ? e.detail : 'не удалось выполнить запрос')
 
 function initialDraft(): CreateDraft {
+  const target = readFormTarget(window.location.search)
+  const saved = loadCreateDraft()
+  if (target) {
+    if (saved && saved.name.trim() === target.name && saved.phase === 'result' && saved.out) return saved
+    return { ...emptyCreateDraft(), name: target.name, description: target.description }
+  }
   const prefill = readPrefill()
   if (prefill) return { ...emptyCreateDraft(), name: prefill.name, description: prefill.description }
-  return loadCreateDraft() ?? emptyCreateDraft()
+  return saved ?? emptyCreateDraft()
+}
+
+function shouldAutofill(seed: CreateDraft): boolean {
+  const target = readFormTarget(window.location.search)
+  return Boolean(target && !(seed.out && seed.name.trim() === target.name))
 }
 
 export function CreatePage() {
   const [seed] = useState(initialDraft)
   const [name, setName] = useState(seed.name)
   const [description, setDescription] = useState(seed.description)
-  const [phase, setPhase] = useState<Phase>(seed.phase)
+  const [phase, setPhase] = useState<Phase>(shouldAutofill(seed) ? 'loading' : seed.phase)
   const [out, setOut] = useState<AutofillOut | null>(seed.out)
   const [rows, setRows] = useState<Row[] | null>(seed.rows)
   const [hover, setHover] = useState<string | null>(null)
@@ -61,6 +74,7 @@ export function CreatePage() {
   const [expired, setExpired] = useState(false)
   const [fillingKtru, setFillingKtru] = useState(false)
   const [ktruFillNote, setKtruFillNote] = useState<string | null>(null)
+  const [checkFresh, setCheckFresh] = useState(false)
   const ktruFillSeq = useRef(0)
   const rowsRef = useRef<Row[] | null>(seed.rows)
   const ktruCodeRef = useRef<string | null>(seed.out?.ktru.final_code ?? null)
@@ -72,6 +86,13 @@ export function CreatePage() {
   useEffect(() => {
     document.title = 'Создание СТЕ: автозаполнение характеристик'
   }, [])
+
+  const openedOnCharacteristics = readFormTarget(window.location.search) !== null
+
+  useEffect(() => {
+    if (!openedOnCharacteristics) return
+    document.getElementById('characteristics')?.scrollIntoView?.({ block: 'start' })
+  }, [openedOnCharacteristics, phase])
 
   useEffect(() => {
     saveCreateDraft({
@@ -96,7 +117,29 @@ export function CreatePage() {
     setOut(next)
     setRows(nextRows)
     setCheck(null)
+    setCheckFresh(false)
   }
+
+  useEffect(() => {
+    const target = readFormTarget(window.location.search)
+    if (!target || (seed.out && seed.name.trim() === target.name)) return
+    let cancelled = false
+    void api
+      .autofill(target.name, target.description)
+      .then((next) => {
+        if (cancelled) return
+        show(next)
+        setPhase('result')
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return
+        setError(errorText(e))
+        setPhase('edit')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [seed.name, seed.out])
 
   const fill = async () => {
     if (!name.trim()) {
@@ -132,6 +175,26 @@ export function CreatePage() {
 
   const ktruCode = out?.ktru.final_code ?? null
   const card = useMemo(() => toCardIn(name, description, rows ?? [], ktruCode), [name, description, rows, ktruCode])
+
+  useEffect(() => {
+    if (phase !== 'result' || !rows || submitted) return
+    let cancelled = false
+    void api
+      .check(toCardIn(name, description, rows, ktruCode))
+      .then((next) => {
+        if (cancelled) return
+        setCheck(next)
+        setCheckFresh(true)
+      })
+      .catch((e: unknown) => {
+        if (cancelled) return
+        setCheckFresh(false)
+        setError(errorText(e))
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [phase, rows, name, description, ktruCode, submitted])
 
   const fillByKtru = async () => {
     const code = ktruCode
@@ -190,6 +253,10 @@ export function CreatePage() {
 
   const startNew = () => {
     saveCreateDraft(null)
+    if (window.location.search || window.location.hash) {
+      window.history.pushState(null, '', '/')
+      window.dispatchEvent(new PopStateEvent('popstate'))
+    }
     setName('')
     setDescription('')
     setPhase('edit')
@@ -215,16 +282,22 @@ export function CreatePage() {
     setCheck(null)
   }
 
-  const change = (next: Row[]) => {
+  const change = (next: Row[], editedName?: string) => {
     rememberRows(next)
     setRows(next)
-    setCheck(null)
+    setCheckFresh(false)
+    if (editedName) {
+      setCheck((prev) =>
+        prev ? { ...prev, issues: prev.issues.filter((issue) => issue.field !== `characteristics.${editedName}`) } : prev,
+      )
+    }
   }
 
   const marks = (rows ?? []).flatMap((r) => (r.source ? [{ span: r.source, key: r.name }] : []))
   const issues = check ? check.issues : (out?.issues ?? [])
   const locked = submitted !== null
   const editing = phase !== 'result'
+  const gate = phase === 'result' && !locked ? moderationBlock(ktruCode, check, checkFresh) : null
 
   return (
     <>
@@ -321,7 +394,9 @@ export function CreatePage() {
             </Panel>
 
             <Panel
+              id="characteristics"
               title="Характеристики"
+              className="scroll-mt-20"
               flush
               actions={
                 rows && rows.some((r) => r.decision === 'pending' && (r.edited ?? r.value) !== null && r.status !== 'conflict') && !locked ? (
@@ -356,10 +431,11 @@ export function CreatePage() {
                 onHover={setHover}
                 degradedLlm={out?.degraded.includes('llm') ?? false}
                 locked={locked}
-                onAccept={(n) => rows && change(setDecision(rows, n, 'accepted'))}
-                onRemove={(n) => rows && change(setDecision(rows, n, 'removed'))}
-                onRestore={(n) => rows && change(setDecision(rows, n, 'pending'))}
-                onEdit={(n, v) => rows && change(editValue(rows, n, v))}
+                issues={check?.issues ?? []}
+                onAccept={(n) => rows && change(setDecision(rows, n, 'accepted'), n)}
+                onRemove={(n) => rows && change(setDecision(rows, n, 'removed'), n)}
+                onRestore={(n) => rows && change(setDecision(rows, n, 'pending'), n)}
+                onEdit={(n, v) => rows && change(editValue(rows, n, v), n)}
               />
             </Panel>
 
@@ -387,9 +463,14 @@ export function CreatePage() {
                     <Button onClick={runCheck} loading={checking} loadingText="Проверяем…">
                       Проверить перед отправкой
                     </Button>
-                    <Button variant="primary" onClick={submit} loading={submitting} loadingText="Отправляем…">
+                    <Button variant="primary" onClick={submit} loading={submitting} loadingText="Отправляем…" disabled={gate !== null}>
                       Отправить на модерацию
                     </Button>
+                    {gate && (
+                      <p role="status" className="w-full text-[13px] text-pencil">
+                        {gate}
+                      </p>
+                    )}
                     <p className="w-full text-[13px] text-muted">
                       В карточку идут только принятые характеристики: <span className="tabular-nums">{card.characteristics.length}</span> из{' '}
                       <span className="tabular-nums">{rows?.length ?? 0}</span>.

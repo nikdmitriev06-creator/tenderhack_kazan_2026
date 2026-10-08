@@ -12,6 +12,8 @@ function install(key, value) {
 
 install('window', window)
 install('document', window.document)
+install('sessionStorage', window.sessionStorage)
+install('localStorage', window.localStorage)
 try {
   install('navigator', window.navigator)
 } catch {
@@ -32,6 +34,7 @@ for (const name of [
   'DocumentFragment',
   'MutationObserver',
   'Event',
+  'PopStateEvent',
   'MouseEvent',
   'PointerEvent',
   'KeyboardEvent',

@@ -7,15 +7,16 @@ type PanelProps = {
   actions?: ReactNode
   children: ReactNode
   className?: string
+  id?: string
   /** Без внутренних отступов: для таблиц во всю ширину панели. */
   flush?: boolean
 }
 
 /** Блок экрана: поверхность surface с тонкой рамкой. */
-export function Panel({ title, description, actions, children, className, flush = false }: PanelProps) {
+export function Panel({ title, description, actions, children, className, id, flush = false }: PanelProps) {
   const hasHeader = Boolean(title || actions)
   return (
-    <section className={cx('overflow-hidden rounded-(--radius-panel) border border-line bg-surface', className)}>
+    <section id={id} className={cx('overflow-hidden rounded-(--radius-panel) border border-line bg-surface', className)}>
       {hasHeader && (
         <header className="flex items-start justify-between gap-4 px-5 pt-4">
           <div className="min-w-0 flex-1">

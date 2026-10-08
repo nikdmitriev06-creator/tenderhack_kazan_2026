@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { CharacteristicOut, Issue } from '../../api/v1.ts'
-import { acceptAll, applyFix, editValue, fieldLabel, fillEmptyFromKtru, highlightSegments, ktruFillMessage, mergeRows, rowsFrom, setDecision, toCardIn } from './createModel.ts'
+import { acceptAll, applyFix, editValue, fieldLabel, fillEmptyFromKtru, highlightSegments, issuesForCharacteristic, ktruFillMessage, mergeRows, moderationBlock, rowsFrom, setDecision, toCardIn } from './createModel.ts'
 
 const char = (over: Partial<CharacteristicOut>): CharacteristicOut => ({
   name: 'Формат',
@@ -209,4 +209,50 @@ test('повторное заполнение не затирает значен
   assert.equal(twice.rows[0].edited, 'Белая')
   assert.equal(twice.filled, 0)
   assert.equal(twice.kept, 1)
+})
+
+const ready = { issues: [], verdict: 'ready' as const }
+
+test('отправка закрыта без КТРУ и пока сверка не свежая', () => {
+  assert.match(moderationBlock(null, ready, true) ?? '', /не определена/)
+  assert.match(moderationBlock('17.12', null, false) ?? '', /Сверяем/)
+  assert.equal(moderationBlock('17.12', ready, true), null)
+})
+
+test('противоречие КТРУ называется, исправление его снимает, второе остаётся', () => {
+  const format = {
+    field: 'characteristics.Формат',
+    kind: 'not_in_list' as const,
+    severity: 'block' as const,
+    message: 'Значение «Формат» противоречит КТРУ. Сейчас: «A5». Ожидается: A4.',
+    why: 'ожидается A4',
+    rule: 'r',
+    fix: null,
+  }
+  const color = { ...format, field: 'characteristics.Цвет', message: 'Значение «Цвет» противоречит КТРУ.' }
+  const both = { issues: [format, color], verdict: 'needs_fix' as const }
+  assert.match(moderationBlock('17.12', both, true) ?? '', /Несколько/)
+  const left = { issues: [color], verdict: 'needs_fix' as const }
+  assert.match(moderationBlock('17.12', left, true) ?? '', /Цвет/)
+  assert.equal(moderationBlock('17.12', ready, true), null)
+  assert.deepEqual(issuesForCharacteristic(both.issues, 'Формат'), [format])
+  assert.deepEqual(issuesForCharacteristic([color], 'Формат'), [])
+})
+
+test('неизвестный код КТРУ не считается успешной сверкой', () => {
+  const unknown = {
+    issues: [
+      {
+        field: 'ktru_code',
+        kind: 'not_in_list' as const,
+        severity: 'warn' as const,
+        message: 'Кода КТРУ нет в справочнике модуля.',
+        why: 'без позиции',
+        rule: 'r',
+        fix: null,
+      },
+    ],
+    verdict: 'ready' as const,
+  }
+  assert.match(moderationBlock('00', unknown, true) ?? '', /нет в справочнике/)
 })

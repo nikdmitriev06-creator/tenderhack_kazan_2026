@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import assert from 'node:assert/strict'
 import { afterEach, beforeEach, test } from 'node:test'
 import type { BatchState } from '../../api/v1.ts'
+import { readFormTarget } from '../create/formLink.ts'
 import { BatchPage } from './BatchPage.tsx'
 import { reloadBatchSessions, resetBatchSessions } from './batchStore.ts'
 
@@ -29,7 +30,16 @@ beforeEach(() => {
         filename: file.name,
         total: 1,
         processed: 0,
-        rows: [{ row: 1, name: `строка ${file.name}`, status: 'ready', ktru_code: null, filled: 0, issues: [] }],
+        rows: [
+          {
+            row: 1,
+            name: `строка ${file.name}`,
+            status: file.name.includes('open') ? 'needs_fix' : 'ready',
+            ktru_code: file.name.includes('open') ? '17.12.14.129-00000102' : null,
+            filled: 0,
+            issues: [],
+          },
+        ],
       }
       jobs.set(id, state)
       return json({ job_id: id, status_url: `/api/v1/batch/${id}` })
@@ -118,4 +128,29 @@ test('обновление вкладки поднимает принятые п
   render(<BatchPage />)
   await waitFor(() => screen.getByText('Скачать файл с результатом'))
   assert.ok(screen.getByRole('tab', { name: /a\.xlsx/ }))
+})
+
+test('открыть в форме ведёт на характеристики этой строки', async () => {
+  window.history.replaceState(null, '', '/batch')
+  render(<BatchPage />)
+  pick('open.csv')
+  fireEvent.click(screen.getByRole('button', { name: 'Загрузить' }))
+  const link = await screen.findByRole('link', { name: 'Открыть в форме' })
+  const href = link.getAttribute('href') ?? ''
+  const target = readFormTarget(href)
+  assert.equal(target?.name, 'строка open.csv')
+  assert.equal(target?.job, 'job-1')
+  assert.equal(target?.row, '1')
+  assert.equal(target?.ktru, '17.12.14.129-00000102')
+  assert.match(href, /#characteristics/)
+
+  const middle = new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 })
+  link.dispatchEvent(middle)
+  assert.equal(middle.defaultPrevented, false)
+  assert.equal(window.location.pathname, '/batch')
+
+  fireEvent.click(link)
+  assert.equal(window.location.pathname, '/')
+  assert.equal(readFormTarget(window.location.search)?.name, 'строка open.csv')
+  assert.equal(window.location.hash, '#characteristics')
 })

@@ -215,6 +215,54 @@ test('несколько характеристик выбираются нез�
   assert.doesNotMatch(items[1], /A3/)
 })
 
+test('противоречие КТРУ видно у своей характеристики и пропадает после исправления', () => {
+  const issue = {
+    field: 'characteristics.Формат',
+    kind: 'not_in_list' as const,
+    severity: 'block' as const,
+    message: 'Значение «Формат» противоречит КТРУ. Сейчас: «A5». Ожидается: A4.',
+    why: 'в перечне A3, A4',
+    rule: 'r',
+    fix: null,
+  }
+  const { rerender } = render(
+    <CharacteristicsBlock
+      rows={[row({ name: 'Формат', value: 'A5', decision: 'accepted' }), row({ name: 'Цвет', value: 'Белый', decision: 'accepted' })]}
+      loading={false}
+      hover={null}
+      onHover={() => {}}
+      degradedLlm={false}
+      locked={false}
+      issues={[issue]}
+      onAccept={() => {}}
+      onRemove={() => {}}
+      onRestore={() => {}}
+      onEdit={() => {}}
+    />,
+  )
+  const alerts = screen.getAllByRole('alert')
+  assert.equal(alerts.length, 1)
+  assert.match(alerts[0].textContent ?? '', /Формат/)
+  assert.match(alerts[0].textContent ?? '', /A5/)
+  assert.match(alerts[0].textContent ?? '', /A4/)
+  rerender(
+    <CharacteristicsBlock
+      rows={[row({ name: 'Формат', value: 'A4', decision: 'accepted', edited: 'A4' }), row({ name: 'Цвет', value: 'Белый', decision: 'accepted' })]}
+      loading={false}
+      hover={null}
+      onHover={() => {}}
+      degradedLlm={false}
+      locked={false}
+      issues={[]}
+      onAccept={() => {}}
+      onRemove={() => {}}
+      onRestore={() => {}}
+      onEdit={() => {}}
+    />,
+  )
+  assert.equal(screen.queryByRole('alert'), null)
+})
+
 test('слушатель документа один и снимается', () => {
   let live = 0
   const origAdd = document.addEventListener.bind(document)

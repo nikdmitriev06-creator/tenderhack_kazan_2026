@@ -9,18 +9,26 @@
 """
 
 from collections.abc import Iterator
+from functools import lru_cache
 from typing import Literal
 
 import regex as re
 
 from app.catalog import CharacteristicSpec
-from app.checks.moderation import SINGLE_NUM, TitleValue, find_title_values, target_char
+from app.checks.moderation import (
+    SINGLE_NUM,
+    UNIT_ALIAS,
+    TitleValue,
+    find_title_values,
+    target_char,
+)
 from app.extract.model import Extracted
 from app.extract.quantities import bare_values, number_in_range, phrase_values
+from app.glossary import Glossary
 from app.ingest.units import normalize_unit
 from app.schemas import Span
 from app.search.text import tokens
-from app.values import convert, fit_value, fold
+from app.values import convert, damerau_levenshtein, fit_value, fold
 
 Field = Literal["name", "description"]
 _OK = {"exact", "normalized", "bucket", "typo"}
@@ -272,6 +280,184 @@ def _list_values(field: Field, text: str, specs: list[CharacteristicSpec]) -> It
         )
 
 
+# Слова, которые есть почти у каждой количественной характеристики: одно такое совпадение
+# ещё не значит, что фраза про эту характеристику.
+_GENERIC_STEMS = ("объем", "количеств", "размер", "тип", "вид")
+# Разговорные имена и аббревиатуры, чья словарная расшифровка не делит стем с именем КТРУ
+# («ОЗУ» — «запоминающее устройство», а в позиции — «оперативная память»).
+_LABEL_EQUIV: dict[str, tuple[str, ...]] = {
+    "озу": ("оперативн", "памят"),
+    "ram": ("оперативн", "памят"),
+    "оперативк": ("оперативн", "памят"),
+    "ssd": ("накопител", "твердотельн"),
+    "hdd": ("накопител", "жестк"),
+}
+_NUM_UNIT = re.compile(
+    r"(?<![\p{L}\p{N}])(?P<num>[0-9]+(?:[.,][0-9]+)?)(?![\p{N}])"
+    r"\s*(?P<unit>[A-Za-zА-Яа-яЁё%][A-Za-zА-Яа-яЁё0-9%./]{0,12})?"
+)
+_CLAUSE_SPLIT = re.compile(r"[;()]")
+_BOUND_LABEL = re.compile(r"(?:^|\s)(?:до|от|по)\s*$", re.IGNORECASE)
+
+
+@lru_cache(maxsize=1)
+def _label_glossary() -> Glossary:
+    return Glossary.load()
+
+
+def _canon_unit(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    unit = normalize_unit(raw)
+    if unit:
+        return unit
+    alias = UNIT_ALIAS.get(raw) or UNIT_ALIAS.get(raw.upper())
+    if not alias:
+        return None
+    return normalize_unit(alias) or alias
+
+
+def _token_close(left: str, right: str) -> bool:
+    if left == right:
+        return True
+    if len(left) < 5 or len(right) < 5:
+        return False
+    distance = damerau_levenshtein(left, right)
+    return distance <= 1 or (distance <= 2 and distance <= min(len(left), len(right)) // 4)
+
+
+def _distinctive(stem: str) -> bool:
+    return len(stem) >= 5 and not any(stem.startswith(prefix) for prefix in _GENERIC_STEMS)
+
+
+def _enriched_tokens(label: str) -> list[str]:
+    """Стемы метки плюс расшифровки аббревиатур и разговорные эквиваленты."""
+    glossary = _label_glossary()
+    found = list(tokens(glossary.expand(label)))
+    for word in re.findall(r"[\p{L}\p{N}]+", fold(label)):
+        for hit in glossary.lookup(word):
+            found.extend(tokens(hit.full))
+        found.extend(_LABEL_EQUIV.get(word, ()))
+    return found
+
+
+def _fuzzy_overlap(spec_name: str, got: list[str]) -> float:
+    need = tokens(spec_name)
+    if not need or not got:
+        return 0.0
+    matched = [stem for stem in need if any(_token_close(stem, word) for word in got)]
+    if not matched:
+        return 0.0
+    ratio = len(matched) / len(need)
+    if ratio >= MIN_LABEL_OVERLAP and (
+        len(matched) >= 2 or any(_token_close(got[0], stem) for stem in matched)
+    ):
+        return ratio
+    if any(_distinctive(stem) for stem in matched):
+        return MIN_LABEL_OVERLAP
+    return 0.0
+
+
+def _label_match(spec: CharacteristicSpec, label: str) -> float:
+    if not label.strip():
+        return 0.0
+    return max(_label_score(spec.name, label), _fuzzy_overlap(spec.name, _enriched_tokens(label)))
+
+
+def _name_clauses(text: str) -> Iterator[tuple[int, str]]:
+    """Фразы наименования: скобки и «;», затем запятая перед новой меткой."""
+    pieces: list[tuple[int, str]] = []
+    start = 0
+    for match in _CLAUSE_SPLIT.finditer(text):
+        chunk = text[start : match.start()]
+        if chunk.strip():
+            pieces.append((start, chunk))
+        start = match.end()
+    tail = text[start:]
+    if tail.strip():
+        pieces.append((start, tail))
+    for offset, chunk in pieces:
+        yield from _comma_parts(chunk, offset)
+
+
+def _quantity_in_clause(clause: str) -> tuple[re.Match[str], str | None] | None:
+    """Число с единицей в фразе. Без единицы — только если другого числа нет."""
+    matches = list(_NUM_UNIT.finditer(clause))
+    if not matches:
+        return None
+    with_unit = [m for m in matches if _canon_unit(m.group("unit"))]
+    if with_unit:
+        match = with_unit[-1]
+        return match, _canon_unit(match.group("unit"))
+    return matches[-1], None
+
+
+def _unit_compatible(unit: str | None, spec: CharacteristicSpec) -> bool:
+    if unit is None:
+        return True
+    target = normalize_unit(spec.unit) or spec.unit
+    if target is None:
+        return False
+    return convert(1.0, unit, target) is not None
+
+
+def _span_taken(found: dict[str, Extracted], field: Field, start: int, end: int) -> bool:
+    return any(
+        item.source.field == field and not (end <= item.source.start or start >= item.source.end)
+        for item in found.values()
+    )
+
+
+def _embedded_quantities(
+    field: Field, text: str, specs: list[CharacteristicSpec], found: dict[str, Extracted]
+) -> Iterator[Extracted]:
+    """Характеристика, вписанная в наименование: метка из позиции КТРУ и значение с единицей.
+
+    Совпадение — по стемам, опечаткам и аббревиатурам. Несколько равных кандидатов или слабая
+    метка ничего не забирают: спорный кусок остаётся в тексте.
+    """
+    for offset, clause in _name_clauses(text):
+        found_value = _quantity_in_clause(clause)
+        if found_value is None:
+            continue
+        match, unit = found_value
+        if unit is None or number_in_range(text, offset + match.start()):
+            continue
+        label = (clause[: match.start()] + " " + clause[match.end() :]).strip(" \t,;:—–-()/")
+        if _BOUND_LABEL.search(label):
+            continue
+        start, end = offset + match.start(), offset + match.end()
+        if _span_taken(found, field, start, end):
+            continue
+        number = match.group("num")
+        scored: list[tuple[float, CharacteristicSpec]] = []
+        for spec in specs:
+            if spec.kind != "quantitative" or spec.name in found:
+                continue
+            if not _unit_compatible(unit, spec):
+                continue
+            if fit_value(number, unit, spec).status not in _OK:
+                continue
+            score = _label_match(spec, label)
+            if score <= 0:
+                continue
+            scored.append((score, spec))
+        if not scored:
+            continue
+        best = max(score for score, _ in scored)
+        fits = [spec for score, spec in scored if score == best]
+        if len(fits) != 1:
+            continue
+        fragment = text[start:end]
+        yield Extracted(
+            name=fits[0].name,
+            raw_value=number.replace(" ", ""),
+            raw_unit=unit,
+            source=Span(field=field, start=start, end=end, text=fragment),
+            method="rule",
+        )
+
+
 def extract_rules(name: str, description: str, specs: list[CharacteristicSpec]) -> list[Extracted]:
     found: dict[str, Extracted] = {}
     list_found: dict[str, Extracted] = {}
@@ -301,5 +487,7 @@ def extract_rules(name: str, description: str, specs: list[CharacteristicSpec]) 
         for e in phrase_values(field, text, specs, found):
             found.setdefault(e.name, e)
         for e in bare_values(field, text, specs, found):
+            found.setdefault(e.name, e)
+        for e in _embedded_quantities(field, text, specs, found):
             found.setdefault(e.name, e)
     return list(found.values())

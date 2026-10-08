@@ -4,7 +4,8 @@ import { NBSP } from '../../lib/format'
 import { Input, Skeleton } from '../../ui'
 import { AllowedValues } from './AllowedValues.tsx'
 import { outsideRange, rangeLabel } from './allowedValues.ts'
-import { currentValue, type Row } from './createModel.ts'
+import { currentValue, issuesForCharacteristic, type Row } from './createModel.ts'
+import type { Issue } from '../../api/v1.ts'
 
 type Actions = {
   onAccept: (name: string) => void
@@ -21,6 +22,7 @@ export function CharacteristicsBlock({
   onHover,
   degradedLlm,
   locked,
+  issues = [],
   ...actions
 }: {
   rows: Row[] | null
@@ -29,6 +31,7 @@ export function CharacteristicsBlock({
   onHover: (key: string | null) => void
   degradedLlm: boolean
   locked: boolean
+  issues?: Issue[]
 } & Actions) {
   if (loading)
     return (
@@ -41,7 +44,7 @@ export function CharacteristicsBlock({
   if (!rows) return <p className="px-5 py-4 text-sm text-muted">Появятся после заполнения. Каждое значение будет связано с фрагментом описания.</p>
   if (rows.length === 0) return <p className="px-5 py-4 text-sm text-muted">Позиция не подобрана, заполнять нечего.</p>
   return (
-    <CharacteristicsList rows={rows} hover={hover} onHover={onHover} degradedLlm={degradedLlm} locked={locked} {...actions} />
+    <CharacteristicsList rows={rows} hover={hover} onHover={onHover} degradedLlm={degradedLlm} locked={locked} issues={issues} {...actions} />
   )
 }
 
@@ -51,6 +54,7 @@ function CharacteristicsList({
   onHover,
   degradedLlm,
   locked,
+  issues,
   ...actions
 }: {
   rows: Row[]
@@ -58,6 +62,7 @@ function CharacteristicsList({
   onHover: (key: string | null) => void
   degradedLlm: boolean
   locked: boolean
+  issues: Issue[]
 } & Actions) {
   const names = locked ? '' : rows.map((r) => r.name).join('\0')
   const [openName, setOpenName] = useState<string | null>(null)
@@ -104,6 +109,7 @@ function CharacteristicsList({
             active={hover === r.name}
             onHover={onHover}
             locked={locked}
+            issues={issuesForCharacteristic(issues, r.name)}
             open={openName === r.name}
             onToggle={() => setOpenName((cur) => (cur === r.name ? null : r.name))}
             anchorRef={anchorRef}
@@ -130,6 +136,7 @@ function CharRow({
   active,
   onHover,
   locked,
+  issues,
   open,
   onToggle,
   anchorRef,
@@ -144,6 +151,7 @@ function CharRow({
   active: boolean
   onHover: (k: string | null) => void
   locked: boolean
+  issues: Issue[]
   open: boolean
   onToggle: () => void
   anchorRef: RefObject<HTMLDivElement | null>
@@ -190,6 +198,11 @@ function CharRow({
         </div>
       </div>
       {row.note && row.status === 'conflict' && <p className="mt-0.5 text-xs text-pencil">{row.note}</p>}
+      {issues.map((issue) => (
+        <p key={`${issue.kind}-${issue.message}`} role="alert" className="mt-1 text-xs text-pencil">
+          {issue.message} {issue.why}
+        </p>
+      ))}
       {row.method === 'llm' && !removed && <p className="mt-0.5 text-xs text-subtle">найдено моделью: проверьте</p>}
       {editing ? (
         <form

@@ -133,13 +133,18 @@ def _spec_issues(card: CardIn, position: Position) -> list[Issue]:
             )
         _, unit_in_name = split_name_unit(c.name)
         fit = fit_value(c.value, c.unit or unit_in_name, spec)
+        shown = f"{c.value} {c.unit}".strip() if c.unit else c.value
         if fit.status == "not_in_list":
+            expected = fit.note or "значение из перечня позиции"
             issues.append(
                 Issue(
                     field=field,
                     kind="not_in_list",
                     severity="block",
-                    message=f"Значения «{c.value}» нет в перечне позиции.",
+                    message=(
+                        f"Значение «{spec.name}» противоречит КТРУ {position.code}. "
+                        f"Сейчас: «{shown}». Ожидается: {expected}."
+                    ),
                     why=f"«{spec.name}» в позиции {position.code}: {fit.note}.",
                     rule=RULE_TEXT["value-not-allowed"],
                 )
@@ -157,13 +162,15 @@ def _spec_issues(card: CardIn, position: Position) -> list[Issue]:
                 )
             )
         elif fit.status in ("unit_mismatch", "unparsed"):
-            shown = f"{c.value} {c.unit}" if c.unit else c.value
             issues.append(
                 Issue(
                     field=field,
                     kind="mismatch",
                     severity="block",
-                    message=f"«{shown}» не подходит к «{spec.name}».",
+                    message=(
+                        f"Значение «{spec.name}» противоречит КТРУ {position.code}. "
+                        f"Сейчас: «{shown}». Ожидается: {fit.note}."
+                    ),
                     why=f"{fit.note}.",
                     rule=RULE_UNIT if fit.status == "unit_mismatch" else RULE_NUMBER,
                 )
@@ -187,7 +194,10 @@ def _spec_issues(card: CardIn, position: Position) -> list[Issue]:
                     field=_field(spec.name),
                     kind="moderation_rule",
                     severity="block",
-                    message=f"Не заполнена обязательная характеристика «{spec.name}».",
+                    message=(
+                        f"Обязательная характеристика «{spec.name}» не заполнена. "
+                        f"КТРУ {position.code} требует её указать."
+                    ),
                     why=f"Характеристика обязательна в позиции {position.code}.",
                     rule=RULE_REQUIRED,
                 )

@@ -1,5 +1,5 @@
 // Состояние формы «Создание СТЕ» без React: решения по строкам, исправления, карточка для проверки.
-import type { CardIn, CharacteristicOut, Issue } from '../../api/v1.ts'
+import type { CardIn, CharacteristicOut, CheckOut, Issue } from '../../api/v1.ts'
 
 /** pending — предложено модулем, accepted — принято человеком, removed — убрано. */
 export type Decision = 'pending' | 'accepted' | 'removed'
@@ -177,6 +177,32 @@ export function toCardIn(name: string, description: string, rows: Row[], ktruCod
 
 /** Ключ, под которым «Массовая загрузка» передаёт строку в форму. */
 export const PREFILL_KEY = 'create:prefill'
+
+/**
+ * Почему заявку нельзя отправить. null — сверка с КТРУ прошла.
+ * `fresh` ложь, пока ответ `/check` ещё не пришёл на текущие значения.
+ */
+export function moderationBlock(ktruCode: string | null, check: CheckOut | null, fresh: boolean): string | null {
+  if (!ktruCode) {
+    return 'Позиция КТРУ не определена. Сверить характеристики нельзя, отправка на модерацию недоступна.'
+  }
+  const blocks = (check?.issues ?? []).filter((issue) => issue.severity === 'block')
+  const unknown = check?.issues.find((issue) => issue.field === 'ktru_code')
+  if (!fresh || !check) {
+    if (blocks.length > 0) return blocks.map((issue) => issue.message).join(' ')
+    return 'Сверяем характеристики с позицией КТРУ…'
+  }
+  if (unknown) return `${unknown.message} ${unknown.why}`.trim()
+  if (blocks.length === 1) return `${blocks[0].message} ${blocks[0].why}`.trim()
+  if (blocks.length > 1) return `Несколько характеристик противоречат КТРУ (${blocks.length}). Исправьте отмеченные строки.`
+  if (check.verdict !== 'ready') return 'Карточка не готова к отправке на модерацию.'
+  return null
+}
+
+export function issuesForCharacteristic(issues: readonly Issue[], name: string): Issue[] {
+  const field = `characteristics.${name}`
+  return issues.filter((issue) => issue.field === field && issue.severity === 'block')
+}
 
 const FIELD_PREFIX = 'characteristics.'
 

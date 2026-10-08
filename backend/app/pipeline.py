@@ -458,3 +458,35 @@ def check(card: CardIn, deps: Deps) -> CheckOut:
     if card.ktru_code and position is None:
         issues.insert(0, unknown_code(card.ktru_code))
     return CheckOut(issues=issues, verdict=verdict(issues))
+
+
+def moderation_block(card: CardIn, deps: Deps) -> str | None:
+    """Почему заявку нельзя отправить на модерацию. None — противоречий с КТРУ нет.
+
+    Проверка та же, что у `/api/v1/check`. Неизвестный или пустой код не считается
+    успешной сверкой: без позиции КТРУ карточку нельзя признать годной.
+    """
+    code = (card.ktru_code or "").strip()
+    if not code:
+        return (
+            "Позиция КТРУ не определена. Сверить характеристики нельзя, "
+            "заявка на модерацию не принята."
+        )
+    if deps.catalog.get(code) is None:
+        return (
+            f"Кода КТРУ {code} нет в справочнике. Сверить характеристики нельзя, "
+            "заявка на модерацию не принята."
+        )
+    result = check(card, deps)
+    blocks = [issue for issue in result.issues if issue.severity == "block"]
+    if not blocks:
+        return None
+    parts: list[str] = []
+    for issue in blocks:
+        name = (
+            issue.field.removeprefix("characteristics.")
+            if issue.field.startswith("characteristics.")
+            else issue.field
+        )
+        parts.append(f"«{name}»: {issue.message} {issue.why}".strip())
+    return "Заявка не отправлена: характеристики противоречат КТРУ. " + " ".join(parts)

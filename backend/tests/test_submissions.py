@@ -18,11 +18,24 @@ CATALOG = Catalog.load([FAKE / "ktru.json"])
 COLOR = "17.12.14.129-00000102"
 
 CARD = {
-    "name": "Бумага офисная А4",
+    "name": "Бумага офисная цветная А4",
     "ktru_code": COLOR,
     "characteristics": [
         {"name": "Формат", "value": "A4"},
+        {"name": "Цветность", "value": "Цветная"},
+        {"name": "Интенсивность цвета", "value": "Медиум"},
+        {"name": "Количество листов в пачке", "value": "500", "unit": "шт"},
+    ],
+}
+
+CONFLICT = {
+    "name": "Бумага офисная цветная А4",
+    "ktru_code": COLOR,
+    "characteristics": [
+        {"name": "Формат", "value": "A4"},
+        {"name": "Цветность", "value": "Цветная"},
         {"name": "Интенсивность цвета", "value": "Белый"},
+        {"name": "Количество листов в пачке", "value": "500", "unit": "шт"},
     ],
 }
 
@@ -63,8 +76,68 @@ def test_submission_view_carries_check() -> None:
     client = _client()
     sid = client.post("/api/demo/submissions", json={"card": CARD}).json()["id"]
     view = client.get(f"/api/demo/submissions/{sid}").json()
-    assert view["check"]["verdict"] == "needs_fix"
-    assert any(i["kind"] == "not_in_list" for i in view["check"]["issues"])
+    assert view["check"]["verdict"] == "ready"
+    assert view["check"]["issues"] == []
+
+
+def test_ktru_conflict_is_rejected_and_not_queued() -> None:
+    client = _client()
+    r = client.post("/api/demo/submissions", json={"card": CONFLICT})
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert "Интенсивность цвета" in detail
+    assert "Белый" in detail
+    assert client.get("/api/demo/submissions").json() == []
+
+
+def test_missing_ktru_is_rejected() -> None:
+    client = _client()
+    card = {**CARD, "ktru_code": None}
+    r = client.post("/api/demo/submissions", json={"card": card})
+    assert r.status_code == 422
+    assert "не определена" in r.json()["detail"]
+
+
+def test_unknown_ktru_is_rejected() -> None:
+    client = _client()
+    card = {**CARD, "ktru_code": "00.00.00.000-99999999"}
+    r = client.post("/api/demo/submissions", json={"card": card})
+    assert r.status_code == 422
+    assert "нет в справочнике" in r.json()["detail"]
+
+
+def test_removed_required_characteristic_is_rejected() -> None:
+    client = _client()
+    chars = [c for c in CARD["characteristics"] if c["name"] != "Формат"]
+    r = client.post("/api/demo/submissions", json={"card": {**CARD, "characteristics": chars}})
+    assert r.status_code == 422
+    assert "Формат" in r.json()["detail"]
+
+
+def test_value_outside_range_is_rejected() -> None:
+    client = _client()
+    bags = "22.22.11.000-00000201"
+    card = {
+        "name": "Мешки для мусора",
+        "ktru_code": bags,
+        "characteristics": [
+            {"name": "Объем", "value": "60", "unit": "л"},
+            {"name": "Толщина", "value": "200", "unit": "мкм"},
+            {"name": "Материал", "value": "ПВД"},
+        ],
+    }
+    r = client.post("/api/demo/submissions", json={"card": card})
+    assert r.status_code == 422
+    assert "Толщина" in r.json()["detail"]
+    assert "200" in r.json()["detail"]
+
+
+def test_fixed_value_can_be_submitted() -> None:
+    client = _client()
+    rejected = client.post("/api/demo/submissions", json={"card": CONFLICT})
+    assert rejected.status_code == 422
+    accepted = client.post("/api/demo/submissions", json={"card": CARD})
+    assert accepted.status_code == 201
 
 
 def test_return_with_note() -> None:
