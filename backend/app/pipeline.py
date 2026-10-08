@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 from app.catalog import Catalog, CharacteristicSpec, NumRange, Position
 from app.checks.detector import detect, unknown_code, verdict
 from app.extract import Extracted, LLMItems, extract_llm, extract_rules
+from app.extract.quantities import numeric_notes
 from app.glossary import Glossary
 from app.llm import ChatResult, LLMError, Message
 from app.narrowing import (
@@ -270,6 +271,24 @@ def _issues(
     return detect(card, position)
 
 
+def _number_issues(session: Session, positions: list[Position]) -> list[Issue]:
+    """Число из текста, которое не удалось уверенно положить в характеристику."""
+    specs = _union_specs(positions)
+    return [
+        Issue(
+            field=field,
+            kind="mismatch",
+            severity="info",
+            message=message,
+            why=why,
+            rule="число из текста сопоставлено с характеристикой или явно оставлено без значения",
+        )
+        for field, message, why in numeric_notes(
+            session.name, session.description, specs, session.extracted
+        )
+    ]
+
+
 def render(session: Session, deps: Deps) -> AutofillOut:
     """Ответ по сессии: состояние сужения, характеристики целевой позиции, замечания."""
     positions = [p for c in session.candidates if (p := deps.catalog.get(c.code)) is not None]
@@ -280,14 +299,17 @@ def render(session: Session, deps: Deps) -> AutofillOut:
         unexplained=session.unexplained,
         confirmed=session.confirmed,
         rejected=session.rejected,
+        text=f"{session.name}\n{session.description}",
     )
     target = _target(state, deps.catalog)
     chars = _characteristics(target, session.extracted, session.known) if target else []
+    issues = _issues(session, target, chars) if target else []
+    issues.extend(_number_issues(session, positions))
     return AutofillOut(
         session_id=session.id,
         ktru=state,
         characteristics=chars,
-        issues=_issues(session, target, chars) if target else [],
+        issues=issues,
         degraded=[d for d in session.degraded if d in ("llm", "embeddings")],  # type: ignore[misc]
     )
 
@@ -328,14 +350,37 @@ async def prepare_session(inp: AutofillIn, deps: Deps) -> Session:
     positions = [p for c in candidates if (p := deps.catalog.get(c.code)) is not None]
     specs = _union_specs(positions)
     extracted = extract_rules(inp.name, inp.description, specs)
+    rules_n = len(extracted)
     rest = [s for s in specs if fold(s.name) not in {fold(e.name) for e in extracted}]
     llm_degraded: list[Degraded] = []
-    if rest:
+    llm_called = False
+    llm_items = 0
+    if not candidates:
+        log.info("LLM не вызывалась: нет кандидатов КТРУ, извлекать характеристики не из чего")
+    elif not rest:
+        log.info("LLM не вызывалась: правила закрыли все характеристики кандидатов (%d)", rules_n)
+    else:
+        llm_called = True
         try:
-            extracted += await extract_llm(inp.name, inp.description, rest, deps.llm, deps.glossary)
+            extra = await extract_llm(inp.name, inp.description, rest, deps.llm, deps.glossary)
+            llm_items = len(extra)
+            extracted += extra
+            log.info(
+                "LLM извлечение: кандидатов=%d характеристик_в_запросе=%d принято=%d",
+                len(candidates),
+                len(rest),
+                llm_items,
+            )
         except LLMError as exc:
             log.warning("LLM недоступна, характеристики только по правилам: %s", exc)
             llm_degraded.append("llm")
+    log.info(
+        "разбор текста: правил=%d llm=%s принято_llm=%d запасной_режим=%s",
+        rules_n,
+        "вызов" if llm_called else "нет",
+        llm_items,
+        ",".join(llm_degraded) or "нет",
+    )
     session.candidates = candidates
     session.extracted = extracted
     session.known = _known_from_text(extracted, positions)

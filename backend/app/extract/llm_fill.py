@@ -124,6 +124,7 @@ async def extract_llm(
         reply = result.parsed if isinstance(result.parsed, LLMItems) else None
         break
     if reply is None:
+        log.warning("извлечение LLM не удалось, оставлены только правила")
         return []
     by_name = {s.name: s for s in specs}
     out: list[Extracted] = []
@@ -141,4 +142,5 @@ async def extract_llm(
                 name=spec.name, raw_value=item.value, raw_unit=item.unit, source=span, method="llm"
             )
         )
+    log.info("ответ LLM: элементов=%d принято=%d", len(reply.items), len(out))
     return out

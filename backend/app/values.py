@@ -86,6 +86,25 @@ def levenshtein(a: str, b: str) -> int:
     return prev[-1]
 
 
+def damerau_levenshtein(a: str, b: str) -> int:
+    """Расстояние с перестановкой соседних букв: «бумга» и «бумаг» — одна опечатка."""
+    if a == b:
+        return 0
+    la, lb = len(a), len(b)
+    if la == 0 or lb == 0:
+        return la + lb
+    prev2: list[int] | None = None
+    prev = list(range(lb + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+            if prev2 is not None and i > 1 and j > 1 and ca == b[j - 2] and a[i - 2] == cb:
+                cur[j] = min(cur[j], prev2[j - 2] + 1)
+        prev2, prev = prev, cur
+    return prev[-1]
+
+
 def nearest_allowed(value: str, allowed: list[str]) -> tuple[str, int] | None:
     """Ближайшее значение перечня: совпадение или правка не больше 2 символов и трети длины."""
     v = fold(value)

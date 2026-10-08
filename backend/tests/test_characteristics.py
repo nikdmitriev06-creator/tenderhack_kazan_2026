@@ -21,6 +21,24 @@ def test_perm_kv_string() -> None:
     assert by_name["Вид материала"].value.kind == "text"
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "г/м²",
+        "г/м2",
+        "г / м²",
+        "г / м2",
+        "г на м²",
+        "г на м2",
+        "грамм/м²",
+        "грамм/м2",
+        "грамм на квадратный метр",
+    ],
+)
+def test_areal_density_spellings_share_one_unit(raw: str) -> None:
+    assert normalize_unit(raw) == "г/м2"
+
+
 def test_kazan2025_unit_inside_value() -> None:
     parsed = parse_characteristics("Объем:35 л;Масса:1,5 кг;Цвет:белый")
     by_name = {c.name: c for c in parsed.items}

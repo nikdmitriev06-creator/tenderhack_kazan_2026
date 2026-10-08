@@ -116,6 +116,79 @@ def test_question_on_partial_characteristic_offers_none_option() -> None:
     assert len(values) >= 2
 
 
+def test_required_characteristic_is_not_asked_when_it_does_not_define_the_code() -> None:
+    # Белизна обязательна, но не level_define: при совпавших формате и массе код уже выбран.
+    shared = [
+        CharacteristicSpec(
+            name="Формат", kind="qualitative", values=["A4"], required=True, level_define=True
+        ),
+        CharacteristicSpec(
+            name="Масса бумаги площадью 1 м2",
+            kind="quantitative",
+            unit="г/м2",
+            values=["80"],
+            required=True,
+            level_define=True,
+        ),
+    ]
+    twins = [
+        Position(
+            code=f"T-{i}",
+            name="Бумага",
+            okpd2="17",
+            source="test",
+            characteristics=[
+                *shared,
+                CharacteristicSpec(
+                    name="Белизна по CIE",
+                    kind="quantitative",
+                    unit="%",
+                    values=[str(140 + i)],
+                    required=True,
+                ),
+            ],
+        )
+        for i in (1, 2)
+    ]
+    known = {"Формат": _text("A4"), "Масса бумаги площадью 1 м2": _text("80", "г/м2")}
+    state = build_state(_cands(twins), twins, known)
+    assert state.final_code == "T-1"
+    assert state.question is None
+
+
+def test_level_define_difference_is_still_asked() -> None:
+    positions = [
+        Position(
+            code=code,
+            name="Бумага",
+            okpd2="17",
+            source="test",
+            characteristics=[
+                CharacteristicSpec(
+                    name="Количество листов в пачке",
+                    kind="quantitative",
+                    unit="шт",
+                    values=[sheets],
+                    required=True,
+                    level_define=True,
+                ),
+                CharacteristicSpec(
+                    name="Белизна по CIE",
+                    kind="quantitative",
+                    unit="%",
+                    values=["146"],
+                    required=True,
+                ),
+            ],
+        )
+        for code, sheets in (("T-500", "500"), ("T-250", "250"))
+    ]
+    state = build_state(_cands(positions), positions, {})
+    assert state.final_code is None
+    assert state.question is not None
+    assert state.question.characteristic == "Количество листов в пачке"
+
+
 def test_none_answer_keeps_positions_without_the_characteristic() -> None:
     left = narrow(PAPER, {"Цветность": _answer("")})
     assert [p.code for p in left] == [WHITE_CODE]

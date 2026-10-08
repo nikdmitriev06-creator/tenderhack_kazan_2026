@@ -20,6 +20,7 @@ import {
 import { DescriptionField } from './DescriptionField'
 import { EXAMPLES } from './examples'
 import { IssueList } from './IssueNote'
+import { emptyCreateDraft, loadCreateDraft, saveCreateDraft, type CreateDraft } from './createDraft'
 import { KtruBlock } from './KtruBlock'
 
 type Phase = 'edit' | 'loading' | 'result'
@@ -37,26 +38,32 @@ function readPrefill(): { name: string; description: string } | null {
 
 const errorText = (e: unknown) => (e instanceof ApiError ? e.detail : 'не удалось выполнить запрос')
 
+function initialDraft(): CreateDraft {
+  const prefill = readPrefill()
+  if (prefill) return { ...emptyCreateDraft(), name: prefill.name, description: prefill.description }
+  return loadCreateDraft() ?? emptyCreateDraft()
+}
+
 export function CreatePage() {
-  const [prefill] = useState(readPrefill)
-  const [name, setName] = useState(prefill?.name ?? '')
-  const [description, setDescription] = useState(prefill?.description ?? '')
-  const [phase, setPhase] = useState<Phase>('edit')
-  const [out, setOut] = useState<AutofillOut | null>(null)
-  const [rows, setRows] = useState<Row[] | null>(null)
+  const [seed] = useState(initialDraft)
+  const [name, setName] = useState(seed.name)
+  const [description, setDescription] = useState(seed.description)
+  const [phase, setPhase] = useState<Phase>(seed.phase)
+  const [out, setOut] = useState<AutofillOut | null>(seed.out)
+  const [rows, setRows] = useState<Row[] | null>(seed.rows)
   const [hover, setHover] = useState<string | null>(null)
   const [answering, setAnswering] = useState(false)
   const [checking, setChecking] = useState(false)
-  const [check, setCheck] = useState<CheckOut | null>(null)
+  const [check, setCheck] = useState<CheckOut | null>(seed.check)
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState<Submission | null>(null)
+  const [submitted, setSubmitted] = useState<Submission | null>(seed.submitted)
   const [error, setError] = useState<string | null>(null)
   const [expired, setExpired] = useState(false)
   const [fillingKtru, setFillingKtru] = useState(false)
   const [ktruFillNote, setKtruFillNote] = useState<string | null>(null)
   const ktruFillSeq = useRef(0)
-  const rowsRef = useRef<Row[] | null>(null)
-  const ktruCodeRef = useRef<string | null>(null)
+  const rowsRef = useRef<Row[] | null>(seed.rows)
+  const ktruCodeRef = useRef<string | null>(seed.out?.ktru.final_code ?? null)
 
   const rememberRows = (next: Row[] | null) => {
     rowsRef.current = next
@@ -65,6 +72,18 @@ export function CreatePage() {
   useEffect(() => {
     document.title = 'Создание СТЕ: автозаполнение характеристик'
   }, [])
+
+  useEffect(() => {
+    saveCreateDraft({
+      name,
+      description,
+      phase: phase === 'loading' ? 'edit' : phase,
+      out,
+      rows,
+      submitted,
+      check,
+    })
+  }, [name, description, phase, out, rows, submitted, check])
 
   // keep — после ответа на вопрос: решения человека по строкам сохраняются.
   const show = (next: AutofillOut, keep = false) => {
@@ -167,6 +186,23 @@ export function CreatePage() {
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const startNew = () => {
+    saveCreateDraft(null)
+    setName('')
+    setDescription('')
+    setPhase('edit')
+    setOut(null)
+    rememberRows(null)
+    setRows(null)
+    setHover(null)
+    setCheck(null)
+    setSubmitted(null)
+    setError(null)
+    setExpired(false)
+    setKtruFillNote(null)
+    ktruCodeRef.current = null
   }
 
   const fix = (issue: Issue) => {
@@ -336,11 +372,16 @@ export function CreatePage() {
             {out && phase === 'result' && (
               <div className="flex flex-wrap items-center gap-3">
                 {submitted ? (
-                  <Notice tone="success" title={`Заявка № ${submitted.id} отправлена на модерацию`} className="w-full">
-                    <a href={`/moderation?id=${submitted.id}`} onClick={(e) => navigate(e, `/moderation?id=${submitted.id}`)} className="font-medium text-link underline underline-offset-4">
-                      Открыть в заявках
-                    </a>
-                  </Notice>
+                  <>
+                    <Notice tone="success" title={`Заявка № ${submitted.id} отправлена на модерацию`} className="w-full">
+                      <a href={`/moderation?id=${submitted.id}`} onClick={(e) => navigate(e, `/moderation?id=${submitted.id}`)} className="font-medium text-link underline underline-offset-4">
+                        Открыть в заявках
+                      </a>
+                    </Notice>
+                    <Button variant="primary" onClick={startNew}>
+                      Добавить новый товар
+                    </Button>
+                  </>
                 ) : (
                   <>
                     <Button onClick={runCheck} loading={checking} loadingText="Проверяем…">

@@ -132,6 +132,23 @@ def test_typo_with_extra_letter_still_finds_the_position() -> None:
     assert found and found[0].code == "22.19.60.119-00000301"
 
 
+def test_transposed_typo_is_used_in_search() -> None:
+    index = BM25Index({"paper": "бумага офисная белая"})
+    assert index.correct(tokens("Бумга")[0]) == tokens("Бумага")[0]
+    assert index.search("Бумга офисная")[0][0] == "paper"
+
+
+def test_missing_letter_typo_corrects_a_known_word() -> None:
+    index = BM25Index({"printer": "принтер лазерный"})
+    assert index.correct(tokens("прнтер")[0]) == tokens("принтер")[0]
+    assert index.search("прнтер лазерный")[0][0] == "printer"
+
+
+def test_latin_lookalike_matches_the_cyrillic_word() -> None:
+    index = BM25Index({"pack": "пачка бумаги"})
+    assert index.search("пачкa")[0][0] == "pack"  # латинская a
+
+
 def test_typo_correction_does_not_invent_matches() -> None:
     # Короткие и далёкие от словаря слова не исправляются: «уборке» не станет «бумаге».
     assert BM25.correct("убор") == "убор"

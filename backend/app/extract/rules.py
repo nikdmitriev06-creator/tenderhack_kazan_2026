@@ -16,6 +16,7 @@ import regex as re
 from app.catalog import CharacteristicSpec
 from app.checks.moderation import SINGLE_NUM, TitleValue, find_title_values, target_char
 from app.extract.model import Extracted
+from app.extract.quantities import bare_values, number_in_range, phrase_values
 from app.ingest.units import normalize_unit
 from app.schemas import Span
 from app.search.text import tokens
@@ -178,6 +179,8 @@ def _from_compound(name: str, v: TitleValue, specs: list[CharacteristicSpec]) ->
 
 def _from_name(name: str, specs: list[CharacteristicSpec]) -> Iterator[Extracted]:
     for v in find_title_values(name):
+        if number_in_range(name, v.at):
+            continue
         if v.compound:
             if (e := _from_compound(name, v, specs)) is not None:
                 yield e
@@ -294,4 +297,9 @@ def extract_rules(name: str, description: str, specs: list[CharacteristicSpec]) 
             found[spec_name] = alt
     for spec_name, e in list_found.items():
         found.setdefault(spec_name, e)
+    for field, text in (("name", name), ("description", description)):
+        for e in phrase_values(field, text, specs, found):
+            found.setdefault(e.name, e)
+        for e in bare_values(field, text, specs, found):
+            found.setdefault(e.name, e)
     return list(found.values())

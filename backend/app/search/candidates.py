@@ -95,8 +95,14 @@ async def find_candidates(
     query = without_negations(text)
     negated = negated_stems(f"{gate or ''} {text}")
     gate_hits = bm25.search(gate_text, 1)
-    gate_score = gate_hits[0][1] / (bm25.max_score(gate_text) or 1.0) if gate_hits else 0.0
-    hits = bm25.search(query, k) if gate_score >= min_score else []
+    overlap = bm25.known_overlap(gate_text, gate_hits[0][0]) if gate_hits else 0
+    gate_score = (
+        gate_hits[0][1] / (bm25.max_score(gate_text, matched_known=overlap) or 1.0)
+        if gate_hits
+        else 0.0
+    )
+    raw_hits = bm25.search(query, k) if gate_score >= min_score else []
+    hits = raw_hits
     # Второе условие другой природы: хотя бы одно слово запроса есть в наименовании позиции,
     # а не только в значениях её характеристик («белый» есть в перечнях у многих позиций).
     asked = {t for t in bm25.query_tokens(gate_text) if len(t) >= MIN_NAME_TOKEN}
@@ -112,6 +118,15 @@ async def find_candidates(
     vector_hits, failed = await _vector_hits(text, vectors, embed, k)
     vector_hits = [(c, s) for c, s in vector_hits if s >= MIN_COSINE and catalog.get(c)]
     degraded: list[Literal["embeddings"]] = ["embeddings"] if failed else []
+    log.info(
+        "поиск: gate=%.3f bm25=%d после_имени=%d лексических=%d векторных=%d эмбеддинги=%s",
+        gate_score,
+        len(raw_hits),
+        len(hits),
+        len(lexical),
+        len(vector_hits),
+        "сбой" if failed else "ok",
+    )
     if not lexical and not vector_hits:
         return [], degraded
     words = words_with_stems(text)
