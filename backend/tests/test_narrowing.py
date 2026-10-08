@@ -116,8 +116,8 @@ def test_question_on_partial_characteristic_offers_none_option() -> None:
     assert len(values) >= 2
 
 
-def test_required_characteristic_is_not_asked_when_it_does_not_define_the_code() -> None:
-    # Белизна обязательна, но не level_define: при совпавших формате и массе код уже выбран.
+def test_required_characteristic_is_asked_when_it_still_splits_candidates() -> None:
+    # Формат и масса совпали, но белизна у позиций разная: это не точный код.
     shared = [
         CharacteristicSpec(
             name="Формат", kind="qualitative", values=["A4"], required=True, level_define=True
@@ -151,9 +151,10 @@ def test_required_characteristic_is_not_asked_when_it_does_not_define_the_code()
         for i in (1, 2)
     ]
     known = {"Формат": _text("A4"), "Масса бумаги площадью 1 м2": _text("80", "г/м2")}
-    state = build_state(_cands(twins), twins, known)
-    assert state.final_code == "T-1"
-    assert state.question is None
+    state = build_state(_cands(twins), twins, known, text="Бумага А4 80")
+    assert state.final_code is None
+    assert state.question is not None
+    assert state.question.characteristic == "Белизна по CIE"
 
 
 def test_level_define_difference_is_still_asked() -> None:
@@ -185,6 +186,47 @@ def test_level_define_difference_is_still_asked() -> None:
     ]
     state = build_state(_cands(positions), positions, {})
     assert state.final_code is None
+    assert state.question is not None
+    assert state.question.characteristic == "Количество листов в пачке"
+
+
+def test_larger_sheet_group_is_not_chosen_when_the_count_is_missing() -> None:
+    # Три позиции по 500 листов и одна на 250: большинство не подставляет 500.
+    sheets = ["500", "500", "500", "250"]
+    positions = [
+        Position(
+            code=f"T-{i}",
+            name="Бумага",
+            okpd2="17",
+            source="test",
+            characteristics=[
+                CharacteristicSpec(
+                    name="Формат",
+                    kind="qualitative",
+                    values=["A4"],
+                    required=True,
+                    level_define=True,
+                ),
+                CharacteristicSpec(
+                    name="Количество листов в пачке",
+                    kind="quantitative",
+                    unit="шт",
+                    values=[count],
+                    required=True,
+                    level_define=True,
+                ),
+            ],
+        )
+        for i, count in enumerate(sheets)
+    ]
+    state = build_state(
+        _cands(positions),
+        positions,
+        {"Формат": _text("A4")},
+        text="Бумага А4",
+    )
+    assert state.final_code is None
+    assert state.remaining == 4
     assert state.question is not None
     assert state.question.characteristic == "Количество листов в пачке"
 

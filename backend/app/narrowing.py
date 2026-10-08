@@ -8,7 +8,6 @@
 
 from typing import Literal
 
-import regex as re
 from pydantic import BaseModel
 
 from app.catalog import CharacteristicSpec, Position
@@ -97,31 +96,11 @@ def _known_defining(positions: list[Position], known: dict[str, Known]) -> int:
     return sum(1 for name in known if fold(name) in names)
 
 
-def _value_in_text(value: str, text: str) -> bool:
-    """Значение характеристики реально написано в тексте, а не только есть в справочнике."""
-    if not value or not text:
-        return False
-    needle = fold(value)
-    if not needle:
-        return False
-    return bool(
-        re.search(rf"(?<![\p{{L}}\p{{N}}]){re.escape(needle)}(?![\p{{L}}\p{{N}}])", fold(text))
-    )
-
-
-def _signaled(name: str, positions: list[Position], text: str) -> bool:
-    """Спрашивать характеристику, только если в тексте есть хотя бы одно её значение.
-
-    «А4 80» не упоминает ни 250, ни 500 и не упоминает белизну: такое различие не вопрос,
-    а выбор ближайшей позиции. «90–100» упоминает оба края — вопрос нужен.
-    """
-    if not text:
-        return True
-    return any(_value_in_text(value, text) for value in _options(positions, name) if value)
-
-
 def best_question(
-    positions: list[Position], known: dict[str, Known], *, text: str = ""
+    positions: list[Position],
+    known: dict[str, Known],
+    *,
+    defining_only: bool | None = None,
 ) -> Question | None:
     """Характеристика, ответ на которую в среднем оставит меньше всего позиций.
 
@@ -129,20 +108,20 @@ def best_question(
     определяющая позицию, меньше вариантов, по имени. Перечни пересекаются («A4» есть у нескольких
     позиций), поэтому мера — средний остаток по вариантам, а не энтропия разбиения.
 
-    Если в позициях есть определяющие характеристики (`level_define`), спрашиваем только их:
-    обязательная «Белизна по CIE» не выбирает код, когда формат, масса и листы уже совпали.
+    `defining_only=True` — только `level_define`. `False` — только остальные, когда определяющие
+    уже не различают оставшиеся позиции (тогда спрашиваем белизну, если у кандидатов она разная).
     """
     asked = {fold(n) for n in known}
-    defining = _has_level_define(positions)
     names: dict[str, str] = {}
     for p in positions:
         for c in p.characteristics:
-            if fold(c.name) not in asked and (not defining or c.level_define):
-                # Без level_define спрашиваем по-прежнему: иначе «белая или цветная» молча
-                # превращается в ручной список. С level_define неназванное значение не вопрос.
-                if defining and text and not _signaled(c.name, positions, text):
-                    continue
-                names.setdefault(fold(c.name), c.name)
+            if fold(c.name) in asked:
+                continue
+            if defining_only is True and not c.level_define:
+                continue
+            if defining_only is False and c.level_define:
+                continue
+            names.setdefault(fold(c.name), c.name)
     n = len(positions)
     ranked = []
     for name in names.values():
@@ -187,48 +166,18 @@ def _confirm_question(position: Position) -> Question:
     )
 
 
-def _majority_narrow(
-    positions: list[Position], known: dict[str, Known], text: str
-) -> list[Position]:
-    """Неназванная определяющая характеристика с явным большинством не задаётся вопросом.
+def _next_question(positions: list[Position], known: dict[str, Known]) -> Question | None:
+    """Сначала определяющая характеристику, потом любая, которая ещё режет список.
 
-    «90 г/м², 500 листов» не говорит «матовая», но матовых позиций больше глянцевых: остаётся
-    матовая группа. Равный счёт (белая и цветная бумага) вопросом не закрывается.
+    Число записей в справочнике не выбирает значение: 500 листов не побеждают 250 только потому,
+    что таких позиций больше.
     """
-    left = positions
-    asked = {fold(n) for n in known}
-    for _ in range(8):
-        names: list[str] = []
-        seen: set[str] = set()
-        for p in left:
-            for spec in p.characteristics:
-                key = fold(spec.name)
-                if not spec.level_define or key in asked or key in seen:
-                    continue
-                if _signaled(spec.name, left, text):
-                    continue
-                seen.add(key)
-                names.append(spec.name)
-        narrowed = False
-        for name in names:
-            groups: dict[str, list[Position]] = {}
-            for p in left:
-                spec = _spec(p, name)
-                if spec is None or len(spec.values) != 1:
-                    continue
-                groups.setdefault(fold(spec.values[0]), []).append(p)
-            if len(groups) < 2:
-                continue
-            counts = [len(group) for group in groups.values()]
-            best = max(counts)
-            if counts.count(best) != 1:
-                continue
-            left = next(group for group in groups.values() if len(group) == best)
-            narrowed = True
-            break
-        if not narrowed:
-            return left
-    return left
+    if _has_level_define(positions):
+        defining = best_question(positions, known, defining_only=True)
+        if defining is not None:
+            return defining
+        return best_question(positions, known, defining_only=False)
+    return best_question(positions, known)
 
 
 def unexplained_step(words: list[str]) -> str:
@@ -254,21 +203,24 @@ def build_state(
     Итоговый код — авторитетный результат: если в наименовании остались слова, которых нет ни в
     одной позиции-кандидате (`unexplained`), код ставится только после подтверждения человеком.
     """
+    # Текст не выбирает значение, которого в нём нет: «А4 80» не становится пачкой в 500 листов.
+    _ = text
     if not positions or rejected:
         return KtruState(
             candidates=[], remaining=0, final_code=None, question=None, steps=[STEP_NOT_FOUND]
         )
     left = narrow(positions, known)
-    if text:
-        left = _majority_narrow(left, known, text)
     codes = {p.code for p in left}
     kept = [c for c in candidates if c.code in codes]
     if not left:
         step = _dead_end_step(positions, known)
         return KtruState(candidates=[], remaining=0, final_code=None, question=None, steps=[step])
     doubt = [unexplained_step(unexplained)] if unexplained else []
+    defined = _known_defining(left, known)
     if len(left) == 1:
-        if doubt and confirmed != left[0].code:
+        # Одно слово вроде «принтера» не отменяет код, если определяющие характеристики уже названы.
+        # Пока их мало, незнакомое слово по-прежнему требует подтверждения.
+        if doubt and confirmed != left[0].code and defined < 2:
             return KtruState(
                 candidates=kept,
                 remaining=1,
@@ -279,24 +231,8 @@ def build_state(
         return KtruState(
             candidates=kept, remaining=1, final_code=left[0].code, question=None, steps=[]
         )
-    question = best_question(left, known, text=text)
-    if question is None and text and _has_level_define(left):
-        # Равный счёт неназванных значений — вопрос. Большинство уже сузило список выше.
-        question = best_question(left, known)
+    question = _next_question(left, known)
     steps = list(doubt)
-    defined = _known_defining(left, known)
-    if question is None and _has_level_define(left) and (not doubt or defined >= 2):
-        # Определяющие характеристики больше не различают оставшиеся позиции. Обязательные, но
-        # не определяющие (белизна, непрозрачность) не блокируют выбор кода. Лишние слова
-        # вроде «принтера» не отменяют код, если формат и величина уже названы.
-        code = kept[0].code if kept else left[0].code
-        return KtruState(
-            candidates=kept,
-            remaining=1,
-            final_code=code,
-            question=None,
-            steps=[] if defined >= 2 else steps,
-        )
     if question is None:
         listed = "; ".join(f"{p.code} ({p.name})" for p in left)
         steps.append(f"Выберите позицию вручную: {listed}")

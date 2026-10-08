@@ -301,6 +301,13 @@ def render(session: Session, deps: Deps) -> AutofillOut:
         rejected=session.rejected,
         text=f"{session.name}\n{session.description}",
     )
+    log.info(
+        "итог: кандидатов=%d осталось=%d точный_код=%s вопрос=%s",
+        len(state.candidates),
+        state.remaining,
+        "да" if state.final_code else "нет",
+        state.question.characteristic if state.question else "нет",
+    )
     target = _target(state, deps.catalog)
     chars = _characteristics(target, session.extracted, session.known) if target else []
     issues = _issues(session, target, chars) if target else []
